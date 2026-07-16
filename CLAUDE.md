@@ -1,7 +1,7 @@
 @AGENTS.md
 
 <!-- SPECKIT START -->
-Feature ativa: `specs/006-hardening-service-role/` — Endurecimento service_role.
-Plano atual: `specs/006-hardening-service-role/plan.md`. Constituição do projeto:
-`.specify/memory/constitution.md`.
+Feature ativa: `specs/007-multi-numero/` — Múltiplos números por conta.
+Plano atual: `specs/007-multi-numero/plan.md`. Design detalhado:
+`docs/spec-multi-numero.md`. Constituição: `.specify/memory/constitution.md`.
 <!-- SPECKIT END -->
