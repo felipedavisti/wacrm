@@ -1,7 +1,7 @@
 @AGENTS.md
 
 <!-- SPECKIT START -->
-Feature ativa: `specs/001-engine-send-base/` — Engine Send Base compartilhada.
-Plano atual: `specs/001-engine-send-base/plan.md` (contexto técnico, estrutura,
-Constitution Check). Constituição do projeto: `.specify/memory/constitution.md`.
+Feature ativa: `specs/002-localizacao-pt-br/` — Localização pt-BR.
+Plano atual: `specs/002-localizacao-pt-br/plan.md`. Constituição do projeto:
+`.specify/memory/constitution.md`.
 <!-- SPECKIT END -->
