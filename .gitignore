@@ -36,6 +36,9 @@ yarn-error.log*
 !.env.local.example
 !.env.example
 
+# claude code — local, per-developer settings (permissions etc.); not shared
+.claude/settings.local.json
+
 # vercel
 .vercel
 
