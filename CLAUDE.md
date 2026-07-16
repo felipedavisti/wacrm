@@ -1,7 +1,7 @@
 @AGENTS.md
 
 <!-- SPECKIT START -->
-Feature ativa: `specs/005-janela-24h/` — Janela de 24h proativa.
-Plano atual: `specs/005-janela-24h/plan.md`. Constituição do projeto:
+Feature ativa: `specs/006-hardening-service-role/` — Endurecimento service_role.
+Plano atual: `specs/006-hardening-service-role/plan.md`. Constituição do projeto:
 `.specify/memory/constitution.md`.
 <!-- SPECKIT END -->
