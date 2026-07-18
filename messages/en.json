@@ -216,7 +216,9 @@
       "interactiveReply": "[Interactive reply]",
       "unsupported": "[Unsupported message type]",
       "aiBadge": "AI",
-      "aiBadgeTitle": "Sent automatically by the AI assistant"
+      "aiBadgeTitle": "Sent automatically by the AI assistant",
+      "unknownAuthor": "Unknown agent",
+      "sentByTitle": "Sent by {name}"
     },
     "actions": {
       "reply": "Reply",

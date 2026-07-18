@@ -456,6 +456,9 @@ export function MessageThread({
         id: tempId,
         conversation_id: conversation.id,
         sender_type: "agent",
+        // Attribute the optimistic bubble to the sending agent so the
+        // author shows immediately and doesn't flicker on confirm (spec 003).
+        sender_id: user?.id,
         content_type: "text",
         content_text: text,
         status: "sending",
@@ -519,6 +522,9 @@ export function MessageThread({
         id: tempId,
         conversation_id: conversation.id,
         sender_type: "agent",
+        // Attribute the optimistic bubble to the sending agent so the
+        // author shows immediately and doesn't flicker on confirm (spec 003).
+        sender_id: user?.id,
         content_type: payload.kind,
         content_text: contentText,
         media_url: payload.mediaUrl,
@@ -579,6 +585,9 @@ export function MessageThread({
         id: tempId,
         conversation_id: conversation.id,
         sender_type: "agent",
+        // Attribute the optimistic bubble to the sending agent so the
+        // author shows immediately and doesn't flicker on confirm (spec 003).
+        sender_id: user?.id,
         content_type: "interactive",
         content_text: payload.body,
         interactive_payload: payload,
@@ -658,6 +667,9 @@ export function MessageThread({
         id: tempId,
         conversation_id: conversation.id,
         sender_type: "agent",
+        // Attribute the optimistic bubble to the sending agent so the
+        // author shows immediately and doesn't flicker on confirm (spec 003).
+        sender_id: user?.id,
         content_type: "template",
         content_text: renderedBody,
         template_name: template.name,
@@ -1096,6 +1108,14 @@ export function MessageThread({
                         }
                       : null;
                     const msgReactions = reactionsByMessageId.get(msg.id);
+                    // Resolve the outbound author (spec 003): only agent
+                    // sends carry a sender_id. Unresolved → null; the bubble
+                    // shows a neutral fallback rather than breaking.
+                    const senderName =
+                      msg.sender_type === "agent" && msg.sender_id
+                        ? profiles.find((p) => p.user_id === msg.sender_id)
+                            ?.full_name ?? null
+                        : null;
                     // Toggle is computed at the call site — `msgReactions`
                     // and `user?.id` are already in scope, no extra hook.
                     const handlePillToggle = (emoji: string) => {
@@ -1122,6 +1142,7 @@ export function MessageThread({
                           reactions={msgReactions}
                           currentUserId={user?.id}
                           onToggleReaction={handlePillToggle}
+                          senderName={senderName}
                         />
                       </MessageActions>
                     );
