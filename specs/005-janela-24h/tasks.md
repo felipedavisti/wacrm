@@ -72,8 +72,8 @@ Feature completa no código. Suíte 702/702, typecheck limpo.
 
 ## Fase 5 — Polimento & Verificação
 
-- [x] T011 Aplicar a migration no dev e validar o backfill (conversas com entrada recente ficam abertas; sem entrada, fechadas).
-- [x] T012 Verificação end-to-end (quickstart §2): dentro/fora da janela, template, reabertura.
+- [ ] T011 Aplicar a migration no dev e validar o backfill (conversas com entrada recente ficam abertas; sem entrada, fechadas). **🧪 pendente — precisa do ambiente.**
+- [ ] T012 Verificação end-to-end (quickstart §2): dentro/fora da janela, template, reabertura. **🧪 pendente — depende de T011.**
 - [x] T013 `code-review` na diff (foco: sem regressão no envio da 001; janela calculada em UTC; template nunca bloqueado).
 
 ---
