@@ -165,6 +165,12 @@ export interface Conversation {
   assigned_agent_id?: string;
   last_message_text?: string;
   last_message_at?: string;
+  /**
+   * Timestamp of the last INBOUND (customer) message — anchor of the 24h
+   * service window (migration 500, spec 005). Maintained by the webhook;
+   * null when the conversation has never received a customer message.
+   */
+  last_inbound_at?: string | null;
   unread_count: number;
   created_at: string;
   updated_at: string;

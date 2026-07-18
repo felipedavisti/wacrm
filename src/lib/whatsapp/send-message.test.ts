@@ -6,6 +6,7 @@ import {
   SendMessageError,
   type SendMessageParams,
 } from './send-message';
+import { sendTextMessage, sendTemplateMessage } from '@/lib/whatsapp/meta-api';
 
 // Module mocks for the happy-path attribution tests below. The pre-DB
 // validation tests short-circuit before any of these are reached, so the
@@ -180,13 +181,26 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
 // A minimal happy-path Supabase double: enough tables wired for a text
 // send to reach (and capture) the messages insert. Captures the insert
 // payload so we can assert sender_id (spec 003).
-function happyDb(capture: { messageInsert?: Record<string, unknown> }): SupabaseClient {
+function happyDb(
+  capture: { messageInsert?: Record<string, unknown> },
+  opts: { lastInboundAt?: string | null } = {},
+): SupabaseClient {
+  // Default to an OPEN 24h window (recent inbound) so text sends flow
+  // through; window tests pass an explicit value to close it.
+  const lastInboundAt =
+    opts.lastInboundAt === undefined
+      ? new Date().toISOString()
+      : opts.lastInboundAt;
   function resolve(ops: { table: string; type: string; payload?: unknown }) {
     const { table, type } = ops;
     if (table === 'conversations') {
       if (type === 'update') return { error: null };
       return {
-        data: { id: 'cv-1', contact: { id: 'ct-1', phone: '5511988887777' } },
+        data: {
+          id: 'cv-1',
+          last_inbound_at: lastInboundAt,
+          contact: { id: 'ct-1', phone: '5511988887777' },
+        },
         error: null,
       };
     }
@@ -248,6 +262,57 @@ describe('sendMessageToConversation — outbound attribution (sender_id)', () =>
       sender_type: 'agent',
       sender_id: null,
     });
+  });
+});
+
+describe('sendMessageToConversation — 24h window (spec 005)', () => {
+  const OVER_24H = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+
+  it('refuses free-form text outside the window BEFORE calling Meta', async () => {
+    const err = await sendMessageToConversation(
+      happyDb({}, { lastInboundAt: OVER_24H }),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' },
+    ).catch((e) => e);
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.code).toBe('window_expired');
+    expect(sendTextMessage).not.toHaveBeenCalled();
+  });
+
+  it('refuses free-form outside the window when there was never an inbound (null)', async () => {
+    const err = await sendMessageToConversation(
+      happyDb({}, { lastInboundAt: null }),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'hi' },
+    ).catch((e) => e);
+    expect(err.code).toBe('window_expired');
+    expect(sendTextMessage).not.toHaveBeenCalled();
+  });
+
+  it('always allows a template outside the window (it reopens the conversation)', async () => {
+    const capture: { messageInsert?: Record<string, unknown> } = {};
+    await sendMessageToConversation(
+      happyDb(capture, { lastInboundAt: OVER_24H }),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'template', templateName: 'welcome' },
+    );
+    expect(sendTemplateMessage).toHaveBeenCalled();
+    expect(capture.messageInsert).toMatchObject({ content_type: 'template' });
+  });
+
+  it('maps a Meta 131047 rejection to window_expired (race backstop)', async () => {
+    vi.mocked(sendTextMessage).mockRejectedValueOnce(
+      new Error('(#131047) Message failed to send: re-engagement message'),
+    );
+    // Window is open locally (default), so the check passes and we reach
+    // Meta — which rejects with 131047; the core remaps it.
+    const err = await sendMessageToConversation(happyDb({}), 'acct-1', {
+      conversationId: 'cv-1',
+      messageType: 'text',
+      contentText: 'hi',
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(SendMessageError);
+    expect(err.code).toBe('window_expired');
   });
 });
 
