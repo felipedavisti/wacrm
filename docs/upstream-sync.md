@@ -118,4 +118,5 @@ npm run typecheck && npm run build && npx vitest run
 
 | Data | SHA base anterior | SHA base novo | Branch | Notas |
 |---|---|---|---|---|
-| 2026-07-18 | — | `b867760` | (setup) | Linha de base do fork registrada. Upstream em `b24aa79`, 23 commits à frente — **ainda não mergeados**. |
+| 2026-07-18 | — | `b867760` | (setup) | Linha de base do fork registrada. Upstream em `b24aa79`, 23 commits à frente. |
+| 2026-07-18 | `b867760` | `b24aa79` | `sync/upstream-2026-07-18` | Merge dos 23 commits **sem conflito** (main só tinha docs). typecheck ✅, vitest 643/645 ✅ (2 falhas ambientais de fuso em `date-utils`, passam sob TZ=UTC), `next build` ✅ com env placeholder. Colisão futura já identificada: commit `292f52f` (tag-added triggers) mexe em `contact-detail-view.tsx` (spec 004) e `automations/flows engine.ts` (spec 001 os assumia inalterados). |
