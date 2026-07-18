@@ -51,4 +51,22 @@ describe('serializeMessage', () => {
     const agent = { ...inbound, sender_type: 'agent' } as unknown as Message;
     expect(serializeMessage(agent).direction).toBe('outbound');
   });
+
+  it('never exposes sender_id on the public wire (spec 003, FR-005)', () => {
+    const agentMsg = {
+      id: 'm2',
+      conversation_id: 'conv1',
+      sender_type: 'agent',
+      sender_id: 'internal-agent-uuid',
+      content_type: 'text',
+      content_text: 'hi',
+      message_id: 'wamid.9',
+      status: 'sent',
+      created_at: '2026-01-01T00:00:00Z',
+    } as unknown as Message;
+    const out = serializeMessage(agentMsg);
+    expect(out).not.toHaveProperty('sender_id');
+    // Guard the whole serialized value, not just the top level.
+    expect(JSON.stringify(out)).not.toContain('internal-agent-uuid');
+  });
 });

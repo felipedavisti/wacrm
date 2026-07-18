@@ -28,6 +28,11 @@ interface MessageBubbleProps {
   reactions?: MessageReaction[];
   currentUserId?: string;
   onToggleReaction?: (emoji: string) => void;
+  /** Resolved display name of the agent who sent this outbound message
+   *  (spec 003). null when the sender_id couldn't be resolved (ex-member)
+   *  or there's no attribution (bot/customer/legacy) — the bubble decides
+   *  what to show from message.sender_type + sender_id. */
+  senderName?: string | null;
 }
 
 function StatusIcon({ status }: { status: Message["status"] }) {
@@ -264,11 +269,19 @@ export function MessageBubble({
   reactions,
   currentUserId,
   onToggleReaction,
+  senderName,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");
+
+  // Outbound attribution (spec 003): only human-agent sends carry a
+  // sender_id. Bot/customer sends and legacy pre-feature rows have none and
+  // show no author. An unresolved sender_id (agent left the account) falls
+  // back to a neutral label rather than breaking the row.
+  const attributed = message.sender_type === "agent" && !!message.sender_id;
+  const authorText = attributed ? senderName ?? t("unknownAuthor") : null;
 
   // Row alignment + width cap are owned by <MessageActions> so its hover
   // group matches the bubble's content area, not the full row.
@@ -312,6 +325,19 @@ export function MessageBubble({
             >
               <Sparkles className="h-2.5 w-2.5" />
               {t("aiBadge")}
+            </span>
+          )}
+          {authorText && (
+            <span
+              className={cn(
+                "text-[10px] font-medium",
+                isAgent
+                  ? "text-primary-foreground/70"
+                  : "text-muted-foreground",
+              )}
+              title={t("sentByTitle", { name: authorText })}
+            >
+              {authorText}
             </span>
           )}
           <span
