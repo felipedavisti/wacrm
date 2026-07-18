@@ -226,6 +226,13 @@ export function MessageThread({
     };
   }, []);
 
+  // sender_id → display name, built once per profiles change so the thread
+  // render resolves each message's author in O(1) (spec 003).
+  const nameById = useMemo(
+    () => new Map(profiles.map((p) => [p.user_id, p.full_name])),
+    [profiles],
+  );
+
   // 24-hour session timer
   const sessionInfo = useMemo(() => {
     if (!messages.length) return { expired: false, remaining: "" };
@@ -1113,8 +1120,7 @@ export function MessageThread({
                     // shows a neutral fallback rather than breaking.
                     const senderName =
                       msg.sender_type === "agent" && msg.sender_id
-                        ? profiles.find((p) => p.user_id === msg.sender_id)
-                            ?.full_name ?? null
+                        ? nameById.get(msg.sender_id) ?? null
                         : null;
                     // Toggle is computed at the call site — `msgReactions`
                     // and `user?.id` are already in scope, no extra hook.
