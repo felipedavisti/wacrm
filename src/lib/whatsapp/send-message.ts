@@ -36,6 +36,13 @@ import {
 } from '@/lib/whatsapp/interactive';
 import { decrypt, encrypt, isLegacyFormat } from '@/lib/whatsapp/encryption';
 import { supabaseAdmin } from '@/lib/flows/admin-client';
+import { isWindowOpen } from '@/lib/whatsapp/window';
+
+// Shown when a free-form send is refused because the 24h customer-care
+// window is closed (spec 005). Used both by the pre-send local check and
+// the Meta-131047 backstop so the agent sees one consistent message.
+const WINDOW_CLOSED_MESSAGE =
+  'The 24-hour customer-care window has closed. Send an approved template to reopen the conversation.';
 import {
   sanitizePhoneForMeta,
   isValidE164,
@@ -232,6 +239,17 @@ export async function sendMessageToConversation(
 
   if (convError || !conversation) {
     throw new SendMessageError('not_found', 'Conversation not found', 404);
+  }
+
+  // 24h service window (spec 005, FR-004/FR-005): free-form (non-template)
+  // sends require an open window. Templates always pass — they reopen it.
+  // Refuse locally BEFORE calling Meta so the agent gets a clear message
+  // instead of a raw 131047 rejection.
+  if (
+    messageType !== 'template' &&
+    !isWindowOpen(conversation.last_inbound_at)
+  ) {
+    throw new SendMessageError('window_expired', WINDOW_CLOSED_MESSAGE, 422);
   }
 
   const contact = conversation.contact;
@@ -431,6 +449,12 @@ export async function sendMessageToConversation(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : 'Unknown Meta API error';
+    // Backstop (spec 005, FR-006): if the local window check missed a race
+    // (the window expired between load and send), Meta returns 131047 —
+    // map it to the same clear window_expired instead of a raw Meta error.
+    if (message.includes('131047')) {
+      throw new SendMessageError('window_expired', WINDOW_CLOSED_MESSAGE, 422);
+    }
     console.error('[send-message] Meta send failed for all variants:', message);
     throw new SendMessageError('meta_error', `Meta API error: ${message}`, 502);
   }

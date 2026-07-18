@@ -695,6 +695,11 @@ async function processMessage(
     .update({
       last_message_text: contentText || `[${message.type}]`,
       last_message_at: new Date().toISOString(),
+      // Anchor of the 24h service window (spec 005). Use the customer
+      // message's own timestamp — same value as the inserted row's
+      // created_at and the migration-500 backfill — so live updates and
+      // backfilled rows are consistent.
+      last_inbound_at: new Date(parseInt(message.timestamp) * 1000).toISOString(),
       unread_count: (conversation.unread_count || 0) + 1,
       updated_at: new Date().toISOString(),
     })
