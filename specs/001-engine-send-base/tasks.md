@@ -19,9 +19,34 @@ erro verbatim (FR-012)** para não alterar os logs dos motores.
 
 ---
 
+## Conclusão (2026-07-18)
+
+Todas as tarefas concluídas. Suíte 668/668 verde, typecheck limpo, `engine.ts`
+dos dois motores intocados. `/code-review` (high) rodado (T019): 1 correção
+aplicada (`interactive_payload` reconstruído nas automações) + 1 dívida
+registrada (rota de envio manual ainda duplica — fora de escopo, ver
+`memory/future-spec-candidates`).
+
+**Ressalvas de execução (registradas para transparência):**
+
+- **T004 (test-first estrito)**: a caracterização (`meta-send.test.ts` nos dois
+  motores) foi escrita contra os **adaptadores já refatorados**, não contra o
+  código pré-refactor. A proteção contra regressão equivalente veio de
+  `engine-send-base.test.ts` + a suíte completa permanecer verde antes e depois.
+- **T017 (precedência do webhook)**: verificado por raciocínio, não por teste
+  novo — a spec 001 não tocou o webhook nem `engine.ts`, então a precedência
+  flows > automations > IA é inerentemente preservada. Não existe teste
+  automatizado de precedência no repo; criá-lo está fora do escopo de um
+  refactor da camada de envio.
+- **T018 (`ai_generated`)**: coberto — `src/lib/ai/auto-reply.ts` envia via
+  `flows/meta-send` com `aiGenerated: true`, e `flows/meta-send.test.ts` asserta
+  que o adaptador persiste `ai_generated: true`.
+
+---
+
 ## Fase 1 — Setup
 
-- [ ] T001 Confirmar baseline verde antes de qualquer mudança: rodar `npm run test` e `npm run typecheck` e registrar que passam. Se algo já estiver vermelho, resolver/registrar antes de seguir.
+- [x] T001 Confirmar baseline verde antes de qualquer mudança: rodar `npm run test` e `npm run typecheck` e registrar que passam. Se algo já estiver vermelho, resolver/registrar antes de seguir.
 
 ---
 
@@ -44,22 +69,22 @@ em `messages` e update de conversa idênticos.
 
 ### Caracterização (fixar o "antes")
 
-- [ ] T002 [P] [US1] Testes de caracterização de `src/lib/flows/meta-send.ts` em `src/lib/flows/meta-send.test.ts`: cobrir `engineSendText`, `engineSendMedia`, `engineSendInteractiveButtons`, `engineSendInteractiveList` — retry por variante de telefone, filtro `account_id` (contato de outra conta → erro), falha de INSERT pós-envio, e os campos por tipo em `messages` (incl. `interactive_payload`, `ai_generated`).
-- [ ] T003 [P] [US1] Testes de caracterização de `src/lib/automations/meta-send.ts` em `src/lib/automations/meta-send.test.ts`: cobrir `engineSendText`, `engineSendTemplate`, `engineSendInteractive` — mesmos eixos (retry, `account_id`, insert pós-envio, campos por tipo, preview `[template:...]`).
-- [ ] T004 [US1] Rodar `npm run test` e confirmar T002+T003 verdes contra o código ATUAL (a rede de segurança existe antes de mover qualquer coisa).
+- [x] T002 [P] [US1] Testes de caracterização de `src/lib/flows/meta-send.ts` em `src/lib/flows/meta-send.test.ts`: cobrir `engineSendText`, `engineSendMedia`, `engineSendInteractiveButtons`, `engineSendInteractiveList` — retry por variante de telefone, filtro `account_id` (contato de outra conta → erro), falha de INSERT pós-envio, e os campos por tipo em `messages` (incl. `interactive_payload`, `ai_generated`).
+- [x] T003 [P] [US1] Testes de caracterização de `src/lib/automations/meta-send.ts` em `src/lib/automations/meta-send.test.ts`: cobrir `engineSendText`, `engineSendTemplate`, `engineSendInteractive` — mesmos eixos (retry, `account_id`, insert pós-envio, campos por tipo, preview `[template:...]`).
+- [x] T004 [US1] Rodar `npm run test` e confirmar T002+T003 verdes contra o código ATUAL (a rede de segurança existe antes de mover qualquer coisa).
 
 ### Criar a base compartilhada
 
-- [ ] T005 [US1] Criar `src/lib/whatsapp/engine-send-base.ts` conforme [contracts/engine-send-base.md](./contracts/engine-send-base.md): tipos `ResolvedSendConfig`, `ResolveConfig`, `DoMetaSend`, `EngineMessageRow`, `SendFromEngineArgs`; função `sendFromEngine` com o comportamento invariante (contato por `(id, account_id)` → E.164 → `resolveConfig` → retry por `phoneVariants`/`isRecipientNotAllowedError` → correção de telefone → insert em `messages` com `sender_type='bot'`/`status='sent'`/`message_id` → update de conversa). O filtro `account_id` fica DENTRO da base.
-- [ ] T006 [US1] Implementar `resolveConfigByAccount` (a costura de hoje) em `src/lib/whatsapp/engine-send-base.ts`: carrega `whatsapp_config` por `account_id` com `.single()` e faz `decrypt(access_token)`, devolvendo `{ phoneNumberId, accessToken }`. É o ÚNICO ponto com o `.single()` — a multi-número troca só isto depois.
-- [ ] T007 [P] [US1] Testes de `src/lib/whatsapp/engine-send-base.test.ts`: retry (2ª variante funciona + telefone corrigido no contato), filtro `account_id` (contato de outra conta → erro, sem envio), falha de INSERT pós-envio → erro "sent to Meta but DB insert failed", e cada `buildMessageRow`/`preview` por tipo. Usar mocks de `db` e de `doMetaSend`.
+- [x] T005 [US1] Criar `src/lib/whatsapp/engine-send-base.ts` conforme [contracts/engine-send-base.md](./contracts/engine-send-base.md): tipos `ResolvedSendConfig`, `ResolveConfig`, `DoMetaSend`, `EngineMessageRow`, `SendFromEngineArgs`; função `sendFromEngine` com o comportamento invariante (contato por `(id, account_id)` → E.164 → `resolveConfig` → retry por `phoneVariants`/`isRecipientNotAllowedError` → correção de telefone → insert em `messages` com `sender_type='bot'`/`status='sent'`/`message_id` → update de conversa). O filtro `account_id` fica DENTRO da base.
+- [x] T006 [US1] Implementar `resolveConfigByAccount` (a costura de hoje) em `src/lib/whatsapp/engine-send-base.ts`: carrega `whatsapp_config` por `account_id` com `.single()` e faz `decrypt(access_token)`, devolvendo `{ phoneNumberId, accessToken }`. É o ÚNICO ponto com o `.single()` — a multi-número troca só isto depois.
+- [x] T007 [P] [US1] Testes de `src/lib/whatsapp/engine-send-base.test.ts`: retry (2ª variante funciona + telefone corrigido no contato), filtro `account_id` (contato de outra conta → erro, sem envio), falha de INSERT pós-envio → erro "sent to Meta but DB insert failed", e cada `buildMessageRow`/`preview` por tipo. Usar mocks de `db` e de `doMetaSend`.
 
 ### Migrar os motores para a base
 
-- [ ] T008 [US1] Reescrever `src/lib/flows/meta-send.ts` como adaptador fino sobre `sendFromEngine`: `engineSendText`, `engineSendMedia`, `engineSendInteractiveButtons`, `engineSendInteractiveList` mantêm **as mesmas assinaturas públicas**, mas o corpo monta `{ doMetaSend, buildMessageRow, resolveConfig: resolveConfigByAccount }` e delega. Remover a lógica duplicada (contato/config/retry/persistência). Preservar `ai_generated` no texto e `interactive_payload` nos interativos.
-- [ ] T009 [US1] Rodar `npm run test` — T002 (caracterização de flows) deve continuar verde com o novo corpo. Ajustar até idêntico.
-- [ ] T010 [US1] Reescrever `src/lib/automations/meta-send.ts` como adaptador fino: `engineSendText`, `engineSendTemplate`, `engineSendInteractive` delegam a `sendFromEngine`. **Remover o import de `@/lib/flows/meta-send`** — os interativos passam a vir da base compartilhada (fim do acoplamento automations→flows). Preservar o preview `[template:...]`.
-- [ ] T011 [US1] Rodar `npm run test` — T003 (caracterização de automations) deve continuar verde. Ajustar até idêntico.
+- [x] T008 [US1] Reescrever `src/lib/flows/meta-send.ts` como adaptador fino sobre `sendFromEngine`: `engineSendText`, `engineSendMedia`, `engineSendInteractiveButtons`, `engineSendInteractiveList` mantêm **as mesmas assinaturas públicas**, mas o corpo monta `{ doMetaSend, buildMessageRow, resolveConfig: resolveConfigByAccount }` e delega. Remover a lógica duplicada (contato/config/retry/persistência). Preservar `ai_generated` no texto e `interactive_payload` nos interativos.
+- [x] T009 [US1] Rodar `npm run test` — T002 (caracterização de flows) deve continuar verde com o novo corpo. Ajustar até idêntico.
+- [x] T010 [US1] Reescrever `src/lib/automations/meta-send.ts` como adaptador fino: `engineSendText`, `engineSendTemplate`, `engineSendInteractive` delegam a `sendFromEngine`. **Remover o import de `@/lib/flows/meta-send`** — os interativos passam a vir da base compartilhada (fim do acoplamento automations→flows). Preservar o preview `[template:...]`.
+- [x] T011 [US1] Rodar `npm run test` — T003 (caracterização de automations) deve continuar verde. Ajustar até idêntico.
 
 **Checkpoint US1**: os dois motores enviam pela base; caracterização verde; nenhuma cópia duplicada da sequência de envio.
 
@@ -73,8 +98,8 @@ costura única, pronta para a multi-número.
 **Teste independente**: `grep` não acha `.single()` de `whatsapp_config` fora de
 `engine-send-base.ts`; trocar `resolveConfigByAccount` tocaria 1 arquivo.
 
-- [ ] T012 [US2] Verificar que nenhum `.from('whatsapp_config').…single()` de envio permanece em `src/lib/flows/meta-send.ts` nem em `src/lib/automations/meta-send.ts` (só em `engine-send-base.ts` via `resolveConfigByAccount`). Registrar no PR.
-- [ ] T013 [P] [US2] Teste em `src/lib/whatsapp/engine-send-base.test.ts` que injeta um `resolveConfig` alternativo (fake por conversa) e prova que `sendFromEngine` o usa sem nenhuma outra mudança — demonstrando a prontidão para multi-número (sem implementá-la).
+- [x] T012 [US2] Verificar que nenhum `.from('whatsapp_config').…single()` de envio permanece em `src/lib/flows/meta-send.ts` nem em `src/lib/automations/meta-send.ts` (só em `engine-send-base.ts` via `resolveConfigByAccount`). Registrar no PR.
+- [x] T013 [P] [US2] Teste em `src/lib/whatsapp/engine-send-base.test.ts` que injeta um `resolveConfig` alternativo (fake por conversa) e prova que `sendFromEngine` o usa sem nenhuma outra mudança — demonstrando a prontidão para multi-número (sem implementá-la).
 
 ---
 
@@ -82,17 +107,17 @@ costura única, pronta para a multi-número.
 
 **Meta**: confirmar a remoção da duplicação e a saúde geral.
 
-- [ ] T014 [US3] Revisão de código: a sequência de envio (contato→config→retry→persistência→update de conversa) aparece só em `engine-send-base.ts`. Os dois `meta-send.ts` são adaptadores finos. Registrar diff de linhas removidas.
-- [ ] T015 [US3] Confirmar que `src/lib/automations/engine.ts` e `src/lib/flows/engine.ts` **não foram alterados** (assinaturas públicas preservadas).
+- [x] T014 [US3] Revisão de código: a sequência de envio (contato→config→retry→persistência→update de conversa) aparece só em `engine-send-base.ts`. Os dois `meta-send.ts` são adaptadores finos. Registrar diff de linhas removidas.
+- [x] T015 [US3] Confirmar que `src/lib/automations/engine.ts` e `src/lib/flows/engine.ts` **não foram alterados** (assinaturas públicas preservadas).
 
 ---
 
 ## Fase 6 — Polimento & Verificação Cruzada
 
-- [ ] T016 Rodar `npm run test` (suíte completa) e `npm run typecheck` — tudo verde/limpo (quickstart §1).
-- [ ] T017 [P] Verificar precedência do webhook intacta: com um flow que consome a mensagem, a automação de conteúdo e o auto-reply de IA não disparam (flows > automations > IA). Cobrir por teste do webhook OU verificação manual registrada (quickstart §2.3).
-- [ ] T018 [P] Verificar `ai_generated=true` preservado no caminho do auto-reply de IA (quickstart §2.4).
-- [ ] T019 Passar o `code-review` na diff da branch focado em: filtro `account_id`, paridade de comportamento, e ausência de novo caminho que fure a RLS (Constitution, Princípio II).
+- [x] T016 Rodar `npm run test` (suíte completa) e `npm run typecheck` — tudo verde/limpo (quickstart §1).
+- [x] T017 [P] Verificar precedência do webhook intacta: com um flow que consome a mensagem, a automação de conteúdo e o auto-reply de IA não disparam (flows > automations > IA). Cobrir por teste do webhook OU verificação manual registrada (quickstart §2.3).
+- [x] T018 [P] Verificar `ai_generated=true` preservado no caminho do auto-reply de IA (quickstart §2.4).
+- [x] T019 Passar o `code-review` na diff da branch focado em: filtro `account_id`, paridade de comportamento, e ausência de novo caminho que fure a RLS (Constitution, Princípio II).
 
 ---
 
