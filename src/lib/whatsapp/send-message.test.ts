@@ -7,6 +7,34 @@ import {
   type SendMessageParams,
 } from './send-message';
 
+// Module mocks for the happy-path attribution tests below. The pre-DB
+// validation tests short-circuit before any of these are reached, so the
+// mocks are inert for them.
+vi.mock('@/lib/whatsapp/meta-api', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/whatsapp/meta-api')>();
+  return {
+    ...actual, // keep INTERACTIVE_LIMITS etc. that interactive.ts imports
+    sendTextMessage: vi.fn(async () => ({ messageId: 'wamid' })),
+    sendTemplateMessage: vi.fn(async () => ({ messageId: 'wamid' })),
+    sendMediaMessage: vi.fn(async () => ({ messageId: 'wamid' })),
+    sendInteractiveButtons: vi.fn(async () => ({ messageId: 'wamid' })),
+    sendInteractiveList: vi.fn(async () => ({ messageId: 'wamid' })),
+  };
+});
+vi.mock('@/lib/whatsapp/encryption', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/whatsapp/encryption')>();
+  return { ...actual, decrypt: () => 'tok', isLegacyFormat: () => false };
+});
+vi.mock('@/lib/flows/admin-client', () => {
+  // flow_runs pause: update().eq().eq().eq() → thenable resolving { error }
+  const chain: Record<string, unknown> = {
+    update: () => chain,
+    eq: () => chain,
+    then: (f: (v: unknown) => unknown) => Promise.resolve({ error: null }).then(f),
+  };
+  return { supabaseAdmin: () => ({ from: () => chain }) };
+});
+
 // A db that explodes if touched — these tests cover the param
 // validation that MUST short-circuit before any query runs.
 function noDb(): SupabaseClient {
@@ -146,6 +174,80 @@ describe('sendMessageToConversation — param validation (pre-DB)', () => {
       })
     ).rejects.toThrow('reached DB');
     expect(spy).toHaveBeenCalledWith('conversations');
+  });
+});
+
+// A minimal happy-path Supabase double: enough tables wired for a text
+// send to reach (and capture) the messages insert. Captures the insert
+// payload so we can assert sender_id (spec 003).
+function happyDb(capture: { messageInsert?: Record<string, unknown> }): SupabaseClient {
+  function resolve(ops: { table: string; type: string; payload?: unknown }) {
+    const { table, type } = ops;
+    if (table === 'conversations') {
+      if (type === 'update') return { error: null };
+      return {
+        data: { id: 'cv-1', contact: { id: 'ct-1', phone: '5511988887777' } },
+        error: null,
+      };
+    }
+    if (table === 'whatsapp_config') {
+      return {
+        data: { id: 'wc-1', phone_number_id: 'PN', access_token: 'enc' },
+        error: null,
+      };
+    }
+    if (table === 'messages') {
+      if (type === 'insert') {
+        capture.messageInsert = ops.payload as Record<string, unknown>;
+        return { data: { id: 'msg-1' }, error: null };
+      }
+      return { data: null, error: null };
+    }
+    return { data: null, error: null };
+  }
+  function builder(table: string) {
+    const ops = { table, type: 'select', payload: undefined as unknown };
+    const b: Record<string, unknown> = {
+      select: () => b,
+      insert: (p: unknown) => ((ops.type = 'insert'), (ops.payload = p), b),
+      update: (p: unknown) => ((ops.type = 'update'), (ops.payload = p), b),
+      eq: () => b,
+      single: () => Promise.resolve(resolve(ops)),
+      maybeSingle: () => Promise.resolve(resolve(ops)),
+      then: (f: (v: unknown) => unknown, r?: (e: unknown) => unknown) =>
+        Promise.resolve(resolve(ops)).then(f, r),
+    };
+    return b;
+  }
+  return { from: (t: string) => builder(t) } as unknown as SupabaseClient;
+}
+
+describe('sendMessageToConversation — outbound attribution (sender_id)', () => {
+  const textParams: SendMessageParams = {
+    conversationId: 'cv-1',
+    messageType: 'text',
+    contentText: 'hello',
+  };
+
+  it('persists sender_id when a human agent authored the send', async () => {
+    const capture: { messageInsert?: Record<string, unknown> } = {};
+    await sendMessageToConversation(happyDb(capture), 'acct-1', {
+      ...textParams,
+      senderId: 'agent-A',
+    });
+    expect(capture.messageInsert).toMatchObject({
+      sender_type: 'agent',
+      sender_id: 'agent-A',
+    });
+  });
+
+  it('leaves sender_id null when no agent is provided (bot / public API)', async () => {
+    const capture: { messageInsert?: Record<string, unknown> } = {};
+    await sendMessageToConversation(happyDb(capture), 'acct-1', textParams);
+    expect(capture.messageInsert).toMatchObject({
+      sender_type: 'agent',
+      sender_id: null,
+    });
   });
 });
 

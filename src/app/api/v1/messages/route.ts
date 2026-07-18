@@ -124,6 +124,9 @@ export async function POST(request: Request) {
           typeof body.reply_to_message_id === 'string'
             ? body.reply_to_message_id
             : null,
+        // Public API has no human agent — attribution stays null (spec 003,
+        // FR-004). ApiMessage must never expose sender_id (FR-005).
+        senderId: null,
       }
     );
 
