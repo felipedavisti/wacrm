@@ -15,6 +15,31 @@ caminhos RLS.
 
 ---
 
+## Progresso (2026-07-18)
+
+Superfície `service_role` mapeada com apoio de subagente Explore (25 arquivos).
+Dois pontos frágeis reais foram encontrados e **corrigidos**.
+
+- **T001** ✅ baseline verde.
+- **T002** ✅ `docs/service-role-inventory.md` — inventário completo + invariante de cada caminho + backlog de frágeis.
+- **T003** ✅ `src/lib/auth/account-scope.ts` (`requireAccountScope`) + teste.
+- **T004** ✅ isolamento dos motores: `engine-send-base.test.ts` (contato de outra conta → falha) + `steps-tree.test.ts` (novo guard de posse por conta).
+- **T005** ✅ isolamento do webhook: **corrigido** `handleStatusUpdate` (escrita cross-account via `message_id` não único) → novo `src/lib/whatsapp/status-mirror.ts` escopado por conta + `status-mirror.test.ts` prova a não-colisão. Footprint mínimo no webhook (arquivo quente) — divergência documentada.
+- **T006** ✅ isolamento do api-keys: **já coberto** por `src/lib/auth/api-context.test.ts` (key revogada/inválida → nega; key resolve o próprio `account_id`). Sem teste novo.
+- **T007** ⏳ isolamento dos crons — pendente (ver nota abaixo).
+- **T008** ✅ cada site revisado; guards adicionados onde frágil (webhook + `steps-tree` agora exige `accountId` da sessão e verifica posse; callers atualizados).
+- **T009** ✅ suíte 680/680, typecheck limpo — zero regressão.
+- **T010** ⏳ prova de efetividade (remover o filtro → teste falha) — pendente.
+- **T011** ⏳ `security-review` na diff — pendente.
+
+**Nota T007:** os crons (`automations/cron`, `flows/cron`) são autenticados por
+segredo e operam sobre linhas **já carimbadas por conta**; o downstream
+(`resumePendingExecution`) escopa por `automation.account_id`, coberto pelo guard
+de tenancy testado em `automations/engine.test.ts`. Decidir: escrever teste de
+rota dedicado OU registrar o invariante como suficiente.
+
+---
+
 ## Fase 1 — Setup / Inventário
 
 - [ ] T001 Baseline: `npm run test` e `npm run typecheck` verdes.

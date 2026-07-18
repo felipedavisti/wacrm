@@ -13,6 +13,7 @@ import {
   handleTemplateWebhookChange,
   isTemplateWebhookField,
 } from '@/lib/whatsapp/template-webhook'
+import { mirrorMessageStatus } from '@/lib/whatsapp/status-mirror'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -238,7 +239,7 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
       // Handle status updates
       if (value.statuses) {
         for (const status of value.statuses) {
-          await handleStatusUpdate(status)
+          await handleStatusUpdate(status, value.metadata?.phone_number_id)
         }
       }
 
@@ -349,25 +350,26 @@ function isValidStatusTransition(current: string, incoming: string): boolean {
   return ii > ci
 }
 
-async function handleStatusUpdate(status: {
-  id: string
-  status: string
-  timestamp: string
-  recipient_id: string
-}) {
-  // 1) Mirror onto messages (legacy behavior) — Meta's status values
-  //    already match the CHECK constraint on messages.status. No
-  //    `.select()`: message_id is NOT unique (migration 009 — Meta ids
-  //    repeat across numbers), so this updates 0..N rows and must not
-  //    assume a single row.
-  const { error: msgErr } = await supabaseAdmin()
-    .from('messages')
-    .update({ status: status.status })
-    .eq('message_id', status.id)
-
-  if (msgErr) {
-    console.error('Error updating message status:', msgErr)
-  }
+async function handleStatusUpdate(
+  status: {
+    id: string
+    status: string
+    timestamp: string
+    recipient_id: string
+  },
+  phoneNumberId?: string,
+) {
+  // 1) Mirror onto messages — account-scoped. message_id is NOT unique
+  //    across accounts (migration 009 — Meta ids repeat across numbers),
+  //    so an unscoped update would flip another tenant's message on a
+  //    colliding id. mirrorMessageStatus resolves the owning account from
+  //    the (unique) phone_number_id and updates only that account's rows.
+  //    Deliberate divergence from upstream — docs/service-role-inventory.md.
+  await mirrorMessageStatus(supabaseAdmin(), {
+    messageId: status.id,
+    status: status.status,
+    phoneNumberId,
+  })
 
   // Webhook fan-out for this status change happens at the END of this
   // handler (after the broadcast mirror below), so a slow subscriber

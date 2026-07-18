@@ -1,4 +1,29 @@
 import { supabaseAdmin } from './admin-client'
+import { requireAccountScope } from '@/lib/auth/account-scope'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+// `automation_steps` has no `account_id` of its own — it inherits tenancy
+// from its parent automation. Since these functions run on the service-role
+// client (RLS-bypassing), that inheritance is only safe if we verify the
+// parent automation belongs to the caller's account BEFORE touching steps.
+// The accountId MUST come from the authenticated session, never from the
+// automation row (that would be tautological). See
+// docs/service-role-inventory.md (ponto 1) and Constitution Principle II.
+async function assertAutomationInAccount(
+  admin: SupabaseClient,
+  automationId: string,
+  accountId: string,
+): Promise<void> {
+  requireAccountScope(accountId)
+  const { data, error } = await admin
+    .from('automations')
+    .select('id')
+    .eq('id', automationId)
+    .eq('account_id', accountId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  if (!data) throw new Error('automation not found for this account')
+}
 
 // ------------------------------------------------------------
 // Builder payload → flat rows for automation_steps.
@@ -35,22 +60,26 @@ const uid = () =>
 
 export async function replaceSteps(
   automationId: string,
+  accountId: string,
   input: BuilderStepInput[],
 ): Promise<string | null> {
   const admin = supabaseAdmin()
+  await assertAutomationInAccount(admin, automationId, accountId)
   const { error: delErr } = await admin
     .from('automation_steps')
     .delete()
     .eq('automation_id', automationId)
   if (delErr) return delErr.message
-  return insertSteps(automationId, input)
+  return insertSteps(automationId, accountId, input)
 }
 
 export async function insertSteps(
   automationId: string,
+  accountId: string,
   input: BuilderStepInput[],
 ): Promise<string | null> {
   if (!input || input.length === 0) return null
+  await assertAutomationInAccount(supabaseAdmin(), automationId, accountId)
 
   const looksFlat = input.some(
     (s) => s.branch !== undefined || s.parent_index !== undefined,
@@ -125,8 +154,13 @@ interface DbStep {
   position: number
 }
 
-export async function loadStepsTree(automationId: string): Promise<BuilderStepNode[]> {
-  const { data, error } = await supabaseAdmin()
+export async function loadStepsTree(
+  automationId: string,
+  accountId: string,
+): Promise<BuilderStepNode[]> {
+  const admin = supabaseAdmin()
+  await assertAutomationInAccount(admin, automationId, accountId)
+  const { data, error } = await admin
     .from('automation_steps')
     .select('*')
     .eq('automation_id', automationId)
