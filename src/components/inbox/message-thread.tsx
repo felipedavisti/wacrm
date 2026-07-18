@@ -7,6 +7,7 @@ import { usePresence } from "@/hooks/use-presence";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
+import { isWindowOpen, latestInboundAnchor } from "@/lib/whatsapp/window";
 import type {
   Conversation,
   Message,
@@ -233,32 +234,45 @@ export function MessageThread({
     [profiles],
   );
 
-  // 24-hour session timer
+  // 24-hour session timer. Anchored on the backend-maintained
+  // last_inbound_at (spec 005, migration 500) so the composer agrees with
+  // the server's send check — a divergence would let the agent type a
+  // message the backend then refuses (or vice-versa). Falls back to
+  // scanning the loaded messages when the column is absent (conversation
+  // fetched before the migration/backfill).
   const sessionInfo = useMemo(() => {
-    if (!messages.length) return { expired: false, remaining: "" };
+    // Anchor = most-recent inbound from either the conversation row or the
+    // loaded messages (see latestInboundAnchor — makes reopening robust, SC-004).
+    const anchorIso = latestInboundAnchor(
+      conversation?.last_inbound_at,
+      messages,
+    );
 
-    // Find last customer message
-    const lastCustomerMsg = [...messages]
-      .reverse()
-      .find((m) => m.sender_type === "customer");
+    if (!anchorIso) {
+      // No anchor: while messages are still loading, don't block; once
+      // loaded with no customer message, the window is closed (a cold
+      // outreach needs a template to open it).
+      return messages.length
+        ? { expired: true, remaining: tTimer("expired") }
+        : { expired: false, remaining: "" };
+    }
 
-    if (!lastCustomerMsg) return { expired: true, remaining: "No customer messages" };
-
-    const hoursSince = differenceInHours(new Date(), new Date(lastCustomerMsg.created_at));
-    const expired = hoursSince >= 24;
-
-    if (expired) {
+    // Same helper the server's send check uses, so the composer never
+    // disagrees with the backend on whether a send is allowed (spec 005).
+    if (!isWindowOpen(anchorIso)) {
       return { expired: true, remaining: tTimer("expired") };
     }
 
+    const hoursSince = differenceInHours(new Date(), new Date(anchorIso));
     const hoursLeft = 24 - hoursSince;
     const remaining =
       hoursLeft >= 1
         ? tTimer("xhRemaining", { hours: Math.floor(hoursLeft) })
         : tTimer("xmRemaining", { minutes: Math.floor(hoursLeft * 60) });
 
-    return { expired, remaining };
-  }, [messages, tTimer]);
+    // Reached only when the window is open.
+    return { expired: false, remaining };
+  }, [conversation?.last_inbound_at, messages, tTimer]);
 
   // Store latest callback in a ref so fetchMessages doesn't need to
   // depend on `onMessagesLoaded` — otherwise parent re-renders cause

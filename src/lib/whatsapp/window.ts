@@ -30,3 +30,28 @@ export function isWindowOpen(
   if (Number.isNaN(t)) return false;
   return now - t < WINDOW_MS;
 }
+
+/**
+ * Resolve the window anchor from the two sources the inbox has: the
+ * conversation's backend-maintained `last_inbound_at`, and the most recent
+ * customer message currently loaded in the thread.
+ *
+ * Returns the MORE RECENT of the two (or null if neither exists). Using the
+ * max is what makes reopening robust (spec 005, SC-004): a customer message
+ * arriving in an open thread lands in `messages` via realtime immediately,
+ * so the window reopens even before the parent's conversation row (and its
+ * `last_inbound_at`) has refreshed.
+ */
+export function latestInboundAnchor(
+  lastInboundAt: string | null | undefined,
+  messages: { sender_type: string; created_at: string }[],
+): string | null {
+  const fromMessages = [...messages]
+    .reverse()
+    .find((m) => m.sender_type === 'customer')?.created_at;
+  const candidates = [lastInboundAt, fromMessages].filter(
+    (v): v is string => !!v,
+  );
+  if (candidates.length === 0) return null;
+  return candidates.reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b));
+}
