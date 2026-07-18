@@ -114,6 +114,27 @@ export async function engineSendInteractive(
   args: SendInteractiveArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const { payload } = args
+  // Reconstruct the persisted payload from known keys only — same as
+  // the Flows interactive send does. Passing `payload` verbatim would
+  // leak any extra runtime keys into the JSONB column, diverging from
+  // the pre-refactor behaviour (spec 001: identical observable output).
+  const interactivePayload: InteractiveMessagePayload =
+    payload.kind === 'buttons'
+      ? {
+          kind: 'buttons',
+          body: payload.body,
+          header: payload.header,
+          footer: payload.footer,
+          buttons: payload.buttons,
+        }
+      : {
+          kind: 'list',
+          body: payload.body,
+          header: payload.header,
+          footer: payload.footer,
+          button_label: payload.button_label,
+          sections: payload.sections,
+        }
   return sendFromEngine({
     db: supabaseAdmin(),
     accountId: args.accountId,
@@ -147,7 +168,7 @@ export async function engineSendInteractive(
       row: {
         content_type: 'interactive',
         content_text: payload.body,
-        interactive_payload: payload,
+        interactive_payload: interactivePayload,
       },
       preview: payload.body,
     }),
