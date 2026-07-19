@@ -103,6 +103,9 @@ export async function POST(request: Request) {
       template_name,
       template_language,
       template_params,
+      // Which number to broadcast from (spec 007). Optional — omitted →
+      // the account's first number (back-compat for single-number accounts).
+      whatsapp_config_id,
     } = body
 
     // Normalize to a list of {phone, params} regardless of shape.
@@ -134,11 +137,23 @@ export async function POST(request: Request) {
       )
     }
 
-    const { data: config, error: configError } = await supabase
+    // Resolve which number to send from (spec 007). A caller may pick one
+    // (the broadcast number step) — scoped to the account, so a forged id
+    // simply resolves to nothing (→ "not configured"), never another
+    // account's number. Without a pick, the account's first number.
+    // `.limit(1)` (not `.single()`) so an account with ≥2 numbers doesn't
+    // throw PGRST116 here — the bug that broke multi-number broadcasts.
+    let configQuery = supabase
       .from('whatsapp_config')
       .select('*')
       .eq('account_id', accountId)
-      .single()
+    if (typeof whatsapp_config_id === 'string' && whatsapp_config_id) {
+      configQuery = configQuery.eq('id', whatsapp_config_id)
+    }
+    const { data: configRows, error: configError } = await configQuery
+      .order('created_at', { ascending: true })
+      .limit(1)
+    const config = configRows?.[0]
 
     if (configError || !config) {
       return NextResponse.json(

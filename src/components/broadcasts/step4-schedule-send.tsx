@@ -6,6 +6,13 @@ import { MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -33,6 +40,10 @@ interface Step4Props {
   onBack: () => void;
   isProcessing: boolean;
   progress: number;
+  /** Account numbers for the "send from" picker (spec 007). */
+  numbers: { id: string; name: string }[];
+  whatsappConfigId: string | null;
+  onWhatsappConfigIdChange: (id: string) => void;
 }
 
 export function Step4ScheduleSend({
@@ -45,6 +56,9 @@ export function Step4ScheduleSend({
   onBack,
   isProcessing,
   progress,
+  numbers,
+  whatsappConfigId,
+  onWhatsappConfigIdChange,
 }: Step4Props) {
   const t = useTranslations('Broadcasts.wizard');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -111,6 +125,31 @@ export function Step4ScheduleSend({
           className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
         />
       </div>
+
+      {/* Send-from number (spec 007). Only when the account has ≥2
+          numbers — a single-number account has nothing to choose. */}
+      {numbers.length >= 2 && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-foreground">
+            {t('scheduleSend.sendFromNumber')}
+          </label>
+          <Select
+            value={whatsappConfigId ?? undefined}
+            onValueChange={(v) => v && onWhatsappConfigIdChange(v)}
+          >
+            <SelectTrigger className="border-border bg-muted text-foreground">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {numbers.map((n) => (
+                <SelectItem key={n.id} value={n.id}>
+                  {n.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       {/* Summary Card */}
       <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">

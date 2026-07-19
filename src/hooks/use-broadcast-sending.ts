@@ -46,6 +46,11 @@ interface BroadcastPayload {
    * falls back to the template's stored URL only when this is empty.
    */
   headerMediaUrl?: string;
+  /**
+   * Which of the account's numbers to broadcast from (spec 007). Omitted
+   * for single-number accounts → the API resolves the first number.
+   */
+  whatsappConfigId?: string;
 }
 
 interface UseBroadcastSendingReturn {
@@ -362,6 +367,8 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
           template_name: payload.template.name,
           template_language: payload.template.language ?? 'en_US',
           template_variables: payload.variables,
+          // Number this broadcast goes out on (spec 007). null → default.
+          whatsapp_config_id: payload.whatsappConfigId ?? null,
           audience_filter: {
             type: payload.audience.type,
             tagIds: payload.audience.tagIds,
@@ -481,6 +488,7 @@ export function useBroadcastSending(): UseBroadcastSendingReturn {
               recipients: apiRecipients,
               template_name: payload.template.name,
               template_language: payload.template.language ?? 'en_US',
+              whatsapp_config_id: payload.whatsappConfigId,
             }),
           });
 

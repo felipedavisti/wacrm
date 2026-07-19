@@ -777,7 +777,8 @@
         "sending": "Enviando...",
         "preparing": "Preparando...",
         "progressDesc": "Processando {current} de {total} destinatários...",
-        "toastFailedPreview": "Falha ao carregar os dados da prévia"
+        "toastFailedPreview": "Falha ao carregar os dados da prévia",
+        "sendFromNumber": "Enviar pelo número"
       }
     }
   },

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { numberDisplayName } from '@/lib/whatsapp/number-name';
 import { useAuth } from '@/hooks/use-auth';
 import { toast } from 'sonner';
 import { MessageTemplate } from '@/types';
@@ -45,6 +46,27 @@ export default function NewBroadcastPage() {
   >({});
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [name, setName] = useState('');
+  // Number to broadcast from (spec 007). Defaults to the account's first;
+  // the picker in step 4 only appears when there are ≥2 numbers.
+  const [numbers, setNumbers] = useState<{ id: string; name: string }[]>([]);
+  const [whatsappConfigId, setWhatsappConfigId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('whatsapp_config')
+        .select('id, label, verified_name, display_phone_number, phone_number_id')
+        .order('created_at', { ascending: true });
+      if (cancelled || !data) return;
+      setNumbers(data.map((c) => ({ id: c.id, name: numberDisplayName(c) })));
+      setWhatsappConfigId((prev) => prev ?? data[0]?.id ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSend() {
     if (!template) return;
@@ -62,6 +84,7 @@ export default function NewBroadcastPage() {
         },
         variables,
         headerMediaUrl,
+        whatsappConfigId: whatsappConfigId ?? undefined,
       });
       router.push(`/broadcasts/${broadcastId}`);
     } catch (err) {
@@ -108,6 +131,7 @@ export default function NewBroadcastPage() {
       template_name: template.name,
       template_language: template.language ?? 'en_US',
       template_variables: variables,
+      whatsapp_config_id: whatsappConfigId,
       audience_filter: {
         type: audience.type,
         tagIds: audience.tagIds,
@@ -226,6 +250,9 @@ export default function NewBroadcastPage() {
               onBack={() => setCurrentStep(2)}
               isProcessing={isProcessing}
               progress={progress}
+              numbers={numbers}
+              whatsappConfigId={whatsappConfigId}
+              onWhatsappConfigIdChange={setWhatsappConfigId}
             />
           )}
         </div>
