@@ -40,7 +40,10 @@ export function SettingsOverview({
     useAuth();
   const { mode, theme } = useTheme();
   const t = useTranslations('Settings.overview');
-  const tRoles = useTranslations('roles');
+  // Was `useTranslations('roles')` — a namespace that doesn't exist, which
+  // logged MISSING_MESSAGE and showed the raw role key. The role labels live
+  // under Settings.roles (same set invite-member-dialog already uses). Spec 002.
+  const tRoles = useTranslations('Settings.roles');
   const tSections = useTranslations('Settings.sections');
 
   const [counts, setCounts] = useState<OverviewCounts | null>(null);
