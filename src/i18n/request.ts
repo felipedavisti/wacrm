@@ -1,8 +1,11 @@
 import { getRequestConfig } from 'next-intl/server';
 
 export default getRequestConfig(async () => {
-  // Read the locale from the environment, defaulting to 'en'
-  const locale = process.env.NEXT_PUBLIC_APP_LOCALE || 'en';
+  // Read the locale from the environment. The product ships in Brazilian
+  // Portuguese, so pt-BR is the default when NEXT_PUBLIC_APP_LOCALE is unset
+  // (spec 002, FR-006). The `en` dictionary remains the fallback below when a
+  // requested locale's file doesn't exist.
+  const locale = process.env.NEXT_PUBLIC_APP_LOCALE || 'pt';
 
   let messages;
   try {
