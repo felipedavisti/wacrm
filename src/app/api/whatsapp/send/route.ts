@@ -226,12 +226,28 @@ async function findOrCreateConversation(
   userId: string,
   contactId: string,
 ): Promise<string | null> {
-  const { data: existing } = await supabase
+  // Which number this cold-outreach thread belongs to (spec 007). For now,
+  // the account's single number (.limit(1), not .single(), so a multi-number
+  // account doesn't error); the cold-outreach number picker (Stage C) will
+  // let the agent choose. Stamping it — and scoping the find by it — keeps the
+  // thread identity (account, contact, number) consistent with the inbound
+  // webhook, so an outbound-first-then-inbound sequence converges on ONE
+  // thread instead of splitting (the NULL vs real-config dedup gap).
+  const { data: cfgRows } = await supabase
+    .from('whatsapp_config')
+    .select('id')
+    .eq('account_id', accountId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+  const whatsappConfigId = cfgRows?.[0]?.id ?? null
+
+  let lookup = supabase
     .from('conversations')
     .select('id')
     .eq('account_id', accountId)
     .eq('contact_id', contactId)
-    .maybeSingle()
+  if (whatsappConfigId) lookup = lookup.eq('whatsapp_config_id', whatsappConfigId)
+  const { data: existing } = await lookup.maybeSingle()
 
   if (existing) return existing.id
 
@@ -241,6 +257,7 @@ async function findOrCreateConversation(
       account_id: accountId,
       user_id: userId,
       contact_id: contactId,
+      whatsapp_config_id: whatsappConfigId,
     })
     .select('id')
     .single()
