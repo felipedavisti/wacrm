@@ -252,7 +252,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin, label } = body
+    const {
+      phone_number_id,
+      waba_id,
+      access_token,
+      verify_token,
+      pin,
+      label,
+      // Meta App this number lives under (spec 007). app_secret verifies
+      // the inbound webhook's HMAC; it belongs to the App, not the number,
+      // so it's stored once per App in meta_apps and shared by its numbers.
+      // Optional — single-App accounts keep using META_APP_SECRET (env).
+      app_id,
+      app_secret,
+    } = body
 
     if (!access_token || !phone_number_id) {
       return NextResponse.json(
@@ -345,7 +358,7 @@ export async function POST(request: Request) {
     // instead of overwriting an existing one).
     const { data: existing } = await supabase
       .from('whatsapp_config')
-      .select('id, registered_at, phone_number_id')
+      .select('id, registered_at, phone_number_id, meta_app_id')
       .eq('account_id', accountId)
       .eq('phone_number_id', phone_number_id)
       .maybeSingle()
@@ -422,12 +435,54 @@ export async function POST(request: Request) {
       }
     }
 
+    // Resolve which Meta App this number belongs to (spec 007). If the
+    // caller supplied App credentials, upsert the App (one row per
+    // account+app_id; secret + verify_token encrypted) and link the number
+    // to it — so the webhook can verify this number's inbound HMAC with the
+    // right App secret. Without them we keep whatever the number already
+    // pointed at (edit) or null (new → env META_APP_SECRET fallback).
+    let metaAppId: string | null = existing?.meta_app_id ?? null
+    if (app_id && app_secret) {
+      try {
+        const { data: appRow, error: appErr } = await supabase
+          .from('meta_apps')
+          .upsert(
+            {
+              account_id: accountId,
+              app_id: String(app_id),
+              app_secret: encrypt(String(app_secret)),
+              verify_token: encrypt(String(verify_token || '')),
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'account_id,app_id' },
+          )
+          .select('id')
+          .single()
+        if (appErr) {
+          console.error('Error upserting meta_apps:', appErr)
+          return NextResponse.json(
+            { error: 'Failed to save the Meta App credentials.' },
+            { status: 500 },
+          )
+        }
+        metaAppId = appRow.id
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        console.error('Encryption/upsert of meta_apps failed:', message)
+        return NextResponse.json(
+          { error: 'Failed to encrypt the App secret.' },
+          { status: 500 },
+        )
+      }
+    }
+
     // Persist everything in one shot. If /register failed we still
     // store the credentials and the error so the UI can guide the
     // user through a retry.
     const baseRow = {
       phone_number_id,
       waba_id: waba_id || null,
+      meta_app_id: metaAppId,
       access_token: encryptedAccessToken,
       verify_token: encryptedVerifyToken,
       status: registrationError ? 'disconnected' : 'connected',

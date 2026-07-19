@@ -102,6 +102,11 @@ export function WhatsAppConfig() {
   const [accessToken, setAccessToken] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
   const [pin, setPin] = useState('');
+  // Meta App credentials (spec 007). Only needed to connect a number under
+  // a DIFFERENT Meta App than the env one — lets the webhook verify that
+  // number's inbound signature. Write-only: never returned by the API.
+  const [appId, setAppId] = useState('');
+  const [appSecret, setAppSecret] = useState('');
   const [tokenEdited, setTokenEdited] = useState(false);
 
   // The number currently loaded into the form (null while adding a new
@@ -151,6 +156,8 @@ export function WhatsAppConfig() {
     setAccessToken(sel ? MASKED_TOKEN : '');
     setVerifyToken('');
     setPin('');
+    setAppId('');
+    setAppSecret('');
     setTokenEdited(false);
     setRegistrationProbe(null);
     if (sel?.connected) {
@@ -248,6 +255,8 @@ export function WhatsAppConfig() {
         waba_id: wabaId.trim() || null,
         label: label.trim() || null,
         verify_token: verifyToken.trim() || null,
+        app_id: appId.trim() || null,
+        app_secret: appSecret.trim() || null,
         // Optional — only sent when the user filled it in. The server
         // requires it on first save or when changing numbers; for a
         // simple token rotation, leaving it blank skips re-register.
@@ -819,6 +828,41 @@ export function WhatsAppConfig() {
               <p className="text-xs text-muted-foreground">
                 {t('webhookVerifyTokenHint')}
               </p>
+            </div>
+
+            {/* Meta App credentials — only needed to connect a number under
+                a different Meta App (spec 007). Grouped + hinted so the
+                common single-App flow can leave them blank. */}
+            <div className="space-y-3 rounded-lg border border-dashed border-border p-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                {t('metaAppSection')}
+              </p>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  {t('appId')}
+                  <span className="ml-1 text-muted-foreground">{t('optional')}</span>
+                </Label>
+                <Input
+                  placeholder={t('appIdPlaceholder')}
+                  value={appId}
+                  onChange={(e) => setAppId(e.target.value)}
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  {t('appSecret')}
+                  <span className="ml-1 text-muted-foreground">{t('optional')}</span>
+                </Label>
+                <Input
+                  type="password"
+                  placeholder={t('appSecretPlaceholder')}
+                  value={appSecret}
+                  onChange={(e) => setAppSecret(e.target.value)}
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground">{t('metaAppHint')}</p>
+              </div>
             </div>
 
             <div className="space-y-2">

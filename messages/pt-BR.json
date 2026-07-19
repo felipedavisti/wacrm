@@ -1511,7 +1511,13 @@
       "loadError": "Falha ao carregar a configuração do WhatsApp",
       "numberLabel": "Apelido",
       "numberLabelPlaceholder": "ex.: Vendas, Suporte",
-      "numberLabelHint": "Nome amigável mostrado na inbox e nos seletores de número. Opcional."
+      "numberLabelHint": "Nome amigável mostrado na inbox e nos seletores de número. Opcional.",
+      "metaAppSection": "Meta App (para número em outro App)",
+      "appId": "App ID",
+      "appIdPlaceholder": "ex.: 1234567890123456",
+      "appSecret": "App Secret",
+      "appSecretPlaceholder": "App Secret em Meta → Configurações do App → Básico",
+      "metaAppHint": "Só necessário para conectar um número sob outro Meta App — permite que o webhook valide as mensagens de entrada dele. Deixe em branco para usar o App padrão (env)."
     },
     "sections": {
       "overview": "Visão geral",
