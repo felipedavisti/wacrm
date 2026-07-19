@@ -1494,7 +1494,19 @@
       "step4_3": "Paste the <strong>Webhook Callback URL</strong> from above",
       "step4_4": "Enter the same <strong>Verify Token</strong> you set here",
       "step4_5": "Subscribe to \"messages\" webhook field",
-      "metaDocs": "Meta WhatsApp API Documentation"
+      "metaDocs": "Meta WhatsApp API Documentation",
+      "connectedNumbers": "Connected numbers",
+      "connectedNumbersDesc": "Numbers linked to this account. Select one to edit, or add another.",
+      "addNumber": "Add number",
+      "registeredBadge": "Registered",
+      "notRegisteredBadge": "Not registered",
+      "editingBadge": "Editing",
+      "remove": "Remove",
+      "editingMode": "Editing",
+      "addingMode": "New number",
+      "removeConfirm": "Remove this number from the account? You can re-add it later by re-entering its credentials.",
+      "numberRemoved": "Number removed.",
+      "loadError": "Failed to load WhatsApp configuration"
     },
     "sections": {
       "overview": "Overview",
