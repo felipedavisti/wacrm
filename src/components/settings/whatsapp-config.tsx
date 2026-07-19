@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
   Eye,
@@ -38,6 +38,13 @@ type ResetReason = 'token_corrupted' | 'meta_api_error' | null;
 
 export function WhatsAppConfig() {
   const t = useTranslations('Settings.whatsapp');
+  // Rich-text tag handler for the help steps: renders `<strong>` in the
+  // i18n message as a real React node (bold) instead of raw HTML via
+  // dangerouslySetInnerHTML — next-intl rejects tags-with-attributes in
+  // messages (INVALID_TAG), so the class lives here, not in the string.
+  const strong = (chunks: ReactNode) => (
+    <strong className="text-foreground">{chunks}</strong>
+  );
   const supabase = createClient();
   // After multi-user, whatsapp_config is one-row-per-account, not
   // one-row-per-user. We pull `accountId` straight off the auth
@@ -794,9 +801,9 @@ export function WhatsAppConfig() {
                 <AccordionContent className="text-muted-foreground">
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>{t('step3_1')}</li>
-                    <li dangerouslySetInnerHTML={{ __html: t('step3_2') }} />
-                    <li dangerouslySetInnerHTML={{ __html: t('step3_3') }} />
-                    <li dangerouslySetInnerHTML={{ __html: t('step3_4') }} />
+                    <li>{t.rich('step3_2', { strong })}</li>
+                    <li>{t.rich('step3_3', { strong })}</li>
+                    <li>{t.rich('step3_4', { strong })}</li>
                   </ol>
                 </AccordionContent>
               </AccordionItem>
@@ -812,8 +819,8 @@ export function WhatsAppConfig() {
                   <ol className="list-decimal list-inside space-y-1 text-sm">
                     <li>{t('step4_1')}</li>
                     <li>{t('step4_2')}</li>
-                    <li dangerouslySetInnerHTML={{ __html: t('step4_3') }} />
-                    <li dangerouslySetInnerHTML={{ __html: t('step4_4') }} />
+                    <li>{t.rich('step4_3', { strong })}</li>
+                    <li>{t.rich('step4_4', { strong })}</li>
                     <li>{t('step4_5')}</li>
                   </ol>
                 </AccordionContent>
