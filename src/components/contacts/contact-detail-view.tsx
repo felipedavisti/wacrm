@@ -6,7 +6,9 @@ import { addContactTag, deleteContactTag } from '@/lib/contacts/tag-api';
 import { useAuth } from '@/hooks/use-auth';
 import { formatCurrency } from '@/lib/currency';
 import { toast } from 'sonner';
-import type { Contact, Tag, ContactTag, ContactNote, CustomField, ContactCustomValue, Deal, MessageTemplate } from '@/types';
+import type { Contact, Tag, ContactTag, ContactNote, CustomField, ContactCustomValue, Deal, MessageTemplate, Conversation } from '@/types';
+import Link from 'next/link';
+import { CONVERSATION_SELECT, normalizeConversations } from '@/lib/inbox/conversations';
 import {
   TemplatePicker,
   type TemplateSendValues,
@@ -97,6 +99,11 @@ export function ContactDetailView({
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loadingDeals, setLoadingDeals] = useState(false);
 
+  // Conversations tab (spec 004) — a contact can have N conversations
+  // (one per WhatsApp number once multi-number lands).
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+
   const fetchContact = useCallback(async () => {
     if (!contactId) return;
     setLoading(true);
@@ -180,6 +187,21 @@ export function ContactDetailView({
     setLoadingDeals(false);
   }, [contactId, supabase]);
 
+  const fetchConversations = useCallback(async () => {
+    if (!contactId) return;
+    setLoadingConversations(true);
+    // Reuse the inbox's select + normalizer so this list matches the inbox
+    // exactly. Account isolation is handled by RLS on the client, same as
+    // every other query in this view. Ordered by recent activity (FR-006).
+    const { data } = await supabase
+      .from('conversations')
+      .select(CONVERSATION_SELECT)
+      .eq('contact_id', contactId)
+      .order('last_message_at', { ascending: false });
+    setConversations(normalizeConversations(data ?? []));
+    setLoadingConversations(false);
+  }, [contactId, supabase]);
+
   useEffect(() => {
     if (open && contactId) {
       fetchContact();
@@ -187,8 +209,9 @@ export function ContactDetailView({
       fetchNotes();
       fetchCustomFields();
       fetchDeals();
+      fetchConversations();
     }
-  }, [open, contactId, fetchContact, fetchTags, fetchNotes, fetchCustomFields, fetchDeals]);
+  }, [open, contactId, fetchContact, fetchTags, fetchNotes, fetchCustomFields, fetchDeals, fetchConversations]);
 
   async function copyPhone() {
     if (!contact) return;
@@ -457,6 +480,12 @@ export function ContactDetailView({
                   className="data-active:bg-muted data-active:text-primary text-muted-foreground"
                 >
                   {t('tabs.details')}
+                </TabsTrigger>
+                <TabsTrigger
+                  value="conversations"
+                  className="data-active:bg-muted data-active:text-primary text-muted-foreground"
+                >
+                  {t('tabs.conversations')}
                 </TabsTrigger>
                 <TabsTrigger
                   value="tags"
@@ -740,6 +769,54 @@ export function ContactDetailView({
                           )}
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Conversations Tab (spec 004) */}
+              <TabsContent
+                value="conversations"
+                className="flex-1 overflow-y-auto px-4 py-3"
+              >
+                {loadingConversations ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="size-5 animate-spin text-primary" />
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    {t('conversationsTab.empty')}
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {conversations.map((conv) => (
+                      <Link
+                        key={conv.id}
+                        href={`/inbox?c=${conv.id}`}
+                        className="block rounded-lg border border-border bg-muted/50 p-3 transition-colors hover:bg-muted"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="line-clamp-1 text-sm text-foreground">
+                            {conv.last_message_text ||
+                              t('conversationsTab.noPreview')}
+                          </p>
+                          {(conv.unread_count ?? 0) > 0 && (
+                            <span className="shrink-0 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                              {conv.unread_count}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{t(`conversationsTab.status.${conv.status}`)}</span>
+                          {conv.last_message_at && (
+                            <span>
+                              {new Date(
+                                conv.last_message_at,
+                              ).toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </Link>
                     ))}
                   </div>
                 )}
