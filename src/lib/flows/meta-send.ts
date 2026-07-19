@@ -10,7 +10,7 @@ import {
 import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
 import {
   sendFromEngine,
-  resolveConfigByAccount,
+  resolveConfigByConversation,
 } from '@/lib/whatsapp/engine-send-base'
 import { supabaseAdmin } from './admin-client'
 
@@ -58,7 +58,7 @@ export async function engineSendText(
     accountId: args.accountId,
     conversationId: args.conversationId,
     contactId: args.contactId,
-    resolveConfig: resolveConfigByAccount(),
+    resolveConfig: resolveConfigByConversation(),
     doMetaSend: ({ to, phoneNumberId, accessToken }) =>
       sendTextMessage({ phoneNumberId, accessToken, to, text: args.text }),
     buildMessageRow: () => ({
@@ -100,7 +100,7 @@ export async function engineSendMedia(
     accountId: args.accountId,
     conversationId: args.conversationId,
     contactId: args.contactId,
-    resolveConfig: resolveConfigByAccount(),
+    resolveConfig: resolveConfigByConversation(),
     doMetaSend: ({ to, phoneNumberId, accessToken }) =>
       sendMediaMessage({
         phoneNumberId,
@@ -205,7 +205,7 @@ async function sendInteractiveViaMeta(
     accountId: input.accountId,
     conversationId: input.conversationId,
     contactId: input.contactId,
-    resolveConfig: resolveConfigByAccount(),
+    resolveConfig: resolveConfigByConversation(),
     doMetaSend: ({ to, phoneNumberId, accessToken }) => {
       if (input.kind === 'buttons') {
         return sendInteractiveButtons({

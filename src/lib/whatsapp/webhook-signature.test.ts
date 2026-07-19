@@ -66,4 +66,27 @@ describe("verifyMetaWebhookSignature", () => {
       expect(verifyMetaWebhookSignature(body, header)).toBe(false);
     });
   });
+
+  describe("multi-app try-all-secrets (spec 007)", () => {
+    it("accepts when the signature matches ANY provided secret", () => {
+      const body = '{"entry":[]}';
+      const header = signedHeader(body, "app-2-secret");
+      expect(
+        verifyMetaWebhookSignature(body, header, ["app-1-secret", "app-2-secret"]),
+      ).toBe(true);
+    });
+
+    it("rejects when the signature matches NONE of the secrets", () => {
+      const body = "{}";
+      const header = signedHeader(body, "an-unregistered-secret");
+      expect(
+        verifyMetaWebhookSignature(body, header, ["app-1-secret", "app-2-secret"]),
+      ).toBe(false);
+    });
+
+    it("fails closed on an empty secret list", () => {
+      const body = "{}";
+      expect(verifyMetaWebhookSignature(body, signedHeader(body), [])).toBe(false);
+    });
+  });
 });

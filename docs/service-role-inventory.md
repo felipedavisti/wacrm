@@ -40,6 +40,7 @@ inline da mesma fábrica.
 | Rota | Veredito | Invariante / escopo |
 |---|---|---|
 | `whatsapp/webhook/route.ts` | ✅ Invariante (1 ressalva) | conta por `phone_number_id` único (013); inserts carimbam `account_id`. **Ressalva:** `handleStatusUpdate` — ver "Pontos frágeis" |
+| `whatsapp/webhook-auth.ts` (`loadWebhookAppSecrets`) | ✅ Cross-account **por design** | lê `meta_apps.app_secret` de TODAS as contas para autenticar o webhook (o POST pode ser de qualquer número/App). Leitura service_role deliberada e correta — os secrets ficam no servidor, nunca são retornados; a auth falha fechada. Spec 007. |
 | `whatsapp/config/route.ts` | ✅ Escopado | quase tudo via cliente RLS; service_role só no check anti-colisão de `phone_number_id` (leitura cross-account **intencional**, não exposta ao cliente) |
 | `automations/cron/route.ts` | ✅ Invariante | segredo `x-cron-secret` (timing-safe); linhas pending já carimbadas por conta; downstream escopa por `automation.account_id` |
 | `flows/cron/route.ts` | ✅ Invariante | segredo; varredura global é o objetivo; escrita de timeout por `.eq('id', run.id)` |

@@ -14,6 +14,7 @@ import {
   isTemplateWebhookField,
 } from '@/lib/whatsapp/template-webhook'
 import { mirrorMessageStatus } from '@/lib/whatsapp/status-mirror'
+import { loadWebhookAppSecrets } from '@/lib/whatsapp/webhook-auth'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -176,7 +177,10 @@ export async function POST(request: Request) {
   const rawBody = await request.text()
   const signature = request.headers.get('x-hub-signature-256')
 
-  if (!verifyMetaWebhookSignature(rawBody, signature)) {
+  // Multi-app (spec 007): try every Meta App's secret (meta_apps) plus the
+  // env fallback. Degrades to env-only if meta_apps isn't there yet.
+  const appSecrets = await loadWebhookAppSecrets(supabaseAdmin())
+  if (!verifyMetaWebhookSignature(rawBody, signature, appSecrets)) {
     // 401 (not 200) — we want Meta's delivery dashboard to show failures
     // loudly if a misconfiguration causes signatures to stop matching,
     // rather than silently eating events.

@@ -73,6 +73,47 @@ export function resolveConfigByAccount(): ResolveConfig {
   }
 }
 
+/**
+ * Multi-number resolver (spec 007): resolves the config from the CONVERSATION's
+ * own number (`conversations.whatsapp_config_id`, migration 503), so the reply
+ * goes out through the number the thread belongs to — never "the account's
+ * number" (there may be several). This is the swap the 001 seam was built for.
+ *
+ * Falls back to `resolveConfigByAccount` when the conversation has no number
+ * assigned yet (a row created before migration 503 backfilled it, or an
+ * account still on a single number) — a safe transition either side of the
+ * migration.
+ */
+export function resolveConfigByConversation(): ResolveConfig {
+  const byAccount = resolveConfigByAccount()
+  return async (ctx) => {
+    const { db, conversationId } = ctx
+    const { data: conv } = await db
+      .from('conversations')
+      .select('whatsapp_config_id')
+      .eq('id', conversationId)
+      .maybeSingle()
+
+    if (!conv?.whatsapp_config_id) {
+      // Legacy / pre-migration conversation — resolve by account (single number).
+      return byAccount(ctx)
+    }
+
+    const { data: config, error } = await db
+      .from('whatsapp_config')
+      .select('*')
+      .eq('id', conv.whatsapp_config_id)
+      .single()
+    if (error || !config) {
+      throw new Error('WhatsApp not configured for this conversation')
+    }
+    return {
+      phoneNumberId: config.phone_number_id,
+      accessToken: decrypt(config.access_token),
+    }
+  }
+}
+
 /** The specific Meta API call for this send. Gets the phone (the
  *  variant under test) + the resolved config; returns Meta's wamid. */
 export type DoMetaSend = (args: {
