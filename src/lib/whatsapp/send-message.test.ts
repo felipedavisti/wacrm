@@ -205,8 +205,9 @@ function happyDb(
       };
     }
     if (table === 'whatsapp_config') {
+      // Now loaded via .limit(1) (spec 007) → data is an array, not a row.
       return {
-        data: { id: 'wc-1', phone_number_id: 'PN', access_token: 'enc' },
+        data: [{ id: 'wc-1', phone_number_id: 'PN', access_token: 'enc' }],
         error: null,
       };
     }
@@ -226,6 +227,7 @@ function happyDb(
       insert: (p: unknown) => ((ops.type = 'insert'), (ops.payload = p), b),
       update: (p: unknown) => ((ops.type = 'update'), (ops.payload = p), b),
       eq: () => b,
+      limit: () => b,
       single: () => Promise.resolve(resolve(ops)),
       maybeSingle: () => Promise.resolve(resolve(ops)),
       then: (f: (v: unknown) => unknown, r?: (e: unknown) => unknown) =>
