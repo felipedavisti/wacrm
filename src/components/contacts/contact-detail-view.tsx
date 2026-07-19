@@ -198,7 +198,7 @@ export function ContactDetailView({
       .select(CONVERSATION_SELECT)
       .eq('contact_id', contactId)
       .order('last_message_at', { ascending: false });
-    setConversations(normalizeConversations((data ?? []) as never));
+    setConversations(normalizeConversations(data ?? []));
     setLoadingConversations(false);
   }, [contactId, supabase]);
 
