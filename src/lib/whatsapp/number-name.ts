@@ -27,3 +27,31 @@ export function numberDisplayName(c: NumberNameParts): string {
     c.phone_number_id
   );
 }
+
+// Map waba_id → friendly number name, for labelling/grouping templates by
+// the number/App they belong to (spec 007). A WABA can carry more than one
+// number, so names are joined. Used by the template manager and the
+// broadcast template step so a template shows which number it's for.
+export function wabaLabelMap(
+  configs: (NumberNameParts & { waba_id?: string | null })[],
+): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const c of configs) {
+    if (!c.waba_id) continue;
+    const name = numberDisplayName(c);
+    const prev = m.get(c.waba_id);
+    m.set(c.waba_id, prev ? `${prev}, ${name}` : name);
+  }
+  return m;
+}
+
+// The label to show for a template's waba_id: the friendly number name if
+// known, a short WABA tag when the WABA isn't one of the account's numbers,
+// or null for a template with no WABA (legacy/global → caller decides copy).
+export function templateWabaLabel(
+  wabaId: string | null | undefined,
+  map: Map<string, string>,
+): string | null {
+  if (!wabaId) return null;
+  return map.get(wabaId) ?? `WABA ${wabaId.slice(-4)}`;
+}

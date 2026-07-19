@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { MessageTemplate } from '@/types';
 import { Button } from '@/components/ui/button';
-import { Loader2, FileText, ArrowRight } from 'lucide-react';
+import { Loader2, FileText, ArrowRight, Phone } from 'lucide-react';
+import { wabaLabelMap, templateWabaLabel } from '@/lib/whatsapp/number-name';
 import { useTranslations } from 'next-intl';
 
 const categoryColors: Record<string, string> = {
@@ -25,6 +26,9 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // waba_id → friendly number name, to group templates by number/App
+  // (spec 007) when the account has more than one.
+  const [wabaLabels, setWabaLabels] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     async function fetchTemplates() {
@@ -41,6 +45,11 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
 
         if (fetchError) throw fetchError;
         setTemplates(data ?? []);
+
+        const { data: cfgs } = await supabase
+          .from('whatsapp_config')
+          .select('waba_id, label, verified_name, display_phone_number, phone_number_id');
+        if (cfgs) setWabaLabels(wabaLabelMap(cfgs));
       } catch (err) {
         setError(err instanceof Error ? err.message : t('chooseTemplate.errorLoad'));
       } finally {
@@ -67,6 +76,62 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
     );
   }
 
+  const renderCard = (template: MessageTemplate) => {
+    const isSelected = selectedTemplate?.id === template.id;
+    const catColor = categoryColors[template.category] ?? categoryColors.Utility;
+    return (
+      <button
+        key={template.id}
+        onClick={() => onSelect(template)}
+        className={`flex flex-col gap-3 rounded-xl border p-4 text-left transition-all ${
+          isSelected
+            ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+            : 'border-border bg-card/50 hover:border-border hover:bg-card'
+        }`}
+      >
+        <div className="flex items-start justify-between">
+          <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
+          <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${catColor}`}
+          >
+            {template.category}
+          </span>
+        </div>
+        <p className="line-clamp-3 text-xs text-muted-foreground">{template.body_text}</p>
+        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+          <span>{template.language ?? 'en_US'}</span>
+        </div>
+      </button>
+    );
+  };
+
+  // Group templates by the number/WABA they belong to (spec 007), so the
+  // list isn't a mixed pile when the account has several numbers. Numbered
+  // WABAs first; templates without a WABA (legacy/global) go in a last group.
+  const groups = (() => {
+    const byWaba = new Map<string, MessageTemplate[]>();
+    const noWaba: MessageTemplate[] = [];
+    for (const tpl of templates) {
+      if (tpl.waba_id) {
+        const arr = byWaba.get(tpl.waba_id) ?? [];
+        arr.push(tpl);
+        byWaba.set(tpl.waba_id, arr);
+      } else {
+        noWaba.push(tpl);
+      }
+    }
+    const out = [...byWaba.entries()].map(([waba, tpls]) => ({
+      key: waba,
+      label: templateWabaLabel(waba, wabaLabels) ?? waba,
+      templates: tpls,
+    }));
+    if (noWaba.length)
+      out.push({ key: '__none__', label: t('chooseTemplate.noNumber'), templates: noWaba });
+    return out;
+  })();
+
+  const gridClass = 'grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3';
+
   return (
     <div className="space-y-6">
       <div>
@@ -82,41 +147,21 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
           <p className="text-sm text-muted-foreground">{t('chooseTemplate.noTemplates')}</p>
           <p className="mt-1 text-xs text-muted-foreground">{t('chooseTemplate.createFirst')}</p>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {templates.map((template) => {
-            const isSelected = selectedTemplate?.id === template.id;
-            const catColor = categoryColors[template.category] ?? categoryColors.Utility;
-
-            return (
-              <button
-                key={template.id}
-                onClick={() => onSelect(template)}
-                className={`flex flex-col gap-3 rounded-xl border p-4 text-left transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
-                    : 'border-border bg-card/50 hover:border-border hover:bg-card'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
-                  <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium ${catColor}`}
-                  >
-                    {template.category}
-                  </span>
-                </div>
-                <p className="line-clamp-3 text-xs text-muted-foreground">{template.body_text}</p>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <span>{template.language ?? 'en_US'}</span>
-                  {/* Status is omitted on purpose — every template
-                      shown here is already filtered to APPROVED,
-                      so the chip carried no information. */}
-                </div>
-              </button>
-            );
-          })}
+      ) : wabaLabels.size >= 2 ? (
+        // Grouped by number/WABA (spec 007) — one section per number.
+        <div className="space-y-6">
+          {groups.map((g) => (
+            <div key={g.key}>
+              <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Phone className="size-3 shrink-0" />
+                {g.label}
+              </div>
+              <div className={gridClass}>{g.templates.map(renderCard)}</div>
+            </div>
+          ))}
         </div>
+      ) : (
+        <div className={gridClass}>{templates.map(renderCard)}</div>
       )}
 
       <div className="flex items-center justify-between border-t border-border pt-4">

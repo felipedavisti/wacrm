@@ -694,7 +694,8 @@
         "subtitle": "Selecione um modelo de mensagem aprovado para o seu disparo.",
         "noTemplates": "Nenhum modelo disponível.",
         "createFirst": "Crie um modelo em Configurações primeiro.",
-        "errorLoad": "Falha ao carregar os modelos"
+        "errorLoad": "Falha ao carregar os modelos",
+        "noNumber": "Sem número específico"
       },
       "selectAudience": {
         "title": "Selecionar público",
@@ -1420,7 +1421,8 @@
       "toastInvalidImage": "A imagem do cabeçalho deve ser um JPEG ou PNG.",
       "toastImageTooLarge": "A imagem tem {size} MB — o limite da Meta é 5 MB.",
       "toastUploadSuccess": "Imagem enviada.",
-      "toastUploadFailed": "Falha no envio."
+      "toastUploadFailed": "Falha no envio.",
+      "templateNoNumber": "Sem número"
     },
     "roles": {
       "admin": "Administrador",

@@ -24,6 +24,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Phone } from 'lucide-react';
+import { wabaLabelMap, templateWabaLabel } from '@/lib/whatsapp/number-name';
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/components/ui/card';
 import { SettingsPanelHead } from './settings-panel-head';
@@ -131,6 +133,9 @@ export function TemplateManager() {
 
   const [loading, setLoading] = useState(true);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  // waba_id → friendly number name, so each template shows which number
+  // it belongs to (spec 007).
+  const [wabaLabels, setWabaLabels] = useState<Map<string, string>>(new Map());
   const [dialogOpen, setDialogOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -176,6 +181,22 @@ export function TemplateManager() {
       return { ...prev, body_samples: next };
     });
   }, [bodyVarCount]);
+
+  // Load the account's numbers → waba→label map (spec 007) so each
+  // template can show which number/App it belongs to.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('whatsapp_config')
+        .select('waba_id, label, verified_name, display_phone_number, phone_number_id');
+      if (!cancelled && data) setWabaLabels(wabaLabelMap(data));
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (authLoading) return;
@@ -533,6 +554,17 @@ export function TemplateManager() {
                       <Badge className={`text-xs border ${status.classes}`}>
                         {status.label}
                       </Badge>
+                      {wabaLabels.size >= 2 &&
+                        (templateWabaLabel(template.waba_id, wabaLabels) ? (
+                          <Badge className="gap-1 border border-primary/40 bg-primary/10 text-xs text-primary">
+                            <Phone className="size-3" />
+                            {templateWabaLabel(template.waba_id, wabaLabels)}
+                          </Badge>
+                        ) : (
+                          <Badge className="border border-border bg-muted text-xs text-muted-foreground">
+                            {t('templateNoNumber')}
+                          </Badge>
+                        ))}
                       {template.language && (
                         <span className="text-xs text-muted-foreground uppercase">
                           {template.language}
