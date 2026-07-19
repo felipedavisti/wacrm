@@ -121,31 +121,33 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
           </div>
         )}
 
-        {turns.map((t, i) => (
+        {turns.map((turn, i) => (
           <div
             key={i}
             className={cn(
               'flex gap-2',
-              t.role === 'user' ? 'justify-end' : 'justify-start',
+              turn.role === 'user' ? 'justify-end' : 'justify-start',
             )}
           >
-            {t.role === 'assistant' && (
+            {turn.role === 'assistant' && (
               <Bot className="mt-1 h-5 w-5 shrink-0 text-primary" />
             )}
             <div
               className={cn(
                 'max-w-[80%] rounded-2xl px-3.5 py-2 text-sm',
-                t.role === 'user'
+                turn.role === 'user'
                   ? 'rounded-br-sm bg-primary text-primary-foreground'
                   : 'rounded-bl-sm bg-muted text-foreground',
               )}
             >
-              {t.content && <p className="whitespace-pre-wrap">{t.content}</p>}
-              {t.role === 'assistant' && t.handoff && (
+              {turn.content && (
+                <p className="whitespace-pre-wrap">{turn.content}</p>
+              )}
+              {turn.role === 'assistant' && turn.handoff && (
                 <p
                   className={cn(
                     'flex items-center gap-1 text-xs text-amber-500',
-                    t.content && 'mt-1.5 border-t border-border/50 pt-1.5',
+                    turn.content && 'mt-1.5 border-t border-border/50 pt-1.5',
                   )}
                 >
                   <UserCircle2 className="h-3.5 w-3.5" />
@@ -153,7 +155,7 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
                 </p>
               )}
             </div>
-            {t.role === 'user' && (
+            {turn.role === 'user' && (
               <UserCircle2 className="mt-1 h-5 w-5 shrink-0 text-muted-foreground" />
             )}
           </div>
