@@ -59,6 +59,9 @@ type ConfigRow = {
   status: string | null
   registered_at: string | null
   last_registration_error: string | null
+  display_phone_number: string | null
+  verified_name: string | null
+  label: string | null
 }
 
 type ConfigHealth = {
@@ -68,6 +71,9 @@ type ConfigHealth = {
   status: string | null
   registered_at: string | null
   last_registration_error: string | null
+  display_phone_number: string | null
+  verified_name: string | null
+  label: string | null
   connected: boolean
   phone_info?: unknown
   reason?: string
@@ -83,6 +89,11 @@ async function checkConfigHealth(config: ConfigRow): Promise<ConfigHealth> {
     status: config.status,
     registered_at: config.registered_at,
     last_registration_error: config.last_registration_error,
+    // Stored friendly names (spec 007). Used by the Settings list / inbox
+    // indicator / number pickers; survive even when Meta is unreachable.
+    display_phone_number: config.display_phone_number,
+    verified_name: config.verified_name,
+    label: config.label,
   }
   // Try to decrypt the stored token with the current ENCRYPTION_KEY.
   // If this fails, the key changed (or differs across envs).
@@ -163,7 +174,7 @@ export async function GET() {
     const { data: rows, error: configError } = await supabase
       .from('whatsapp_config')
       .select(
-        'id, phone_number_id, waba_id, access_token, status, registered_at, last_registration_error',
+        'id, phone_number_id, waba_id, access_token, status, registered_at, last_registration_error, display_phone_number, verified_name, label',
       )
       .eq('account_id', accountId)
       .order('created_at', { ascending: true })
@@ -241,7 +252,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
-    const { phone_number_id, waba_id, access_token, verify_token, pin } = body
+    const { phone_number_id, waba_id, access_token, verify_token, pin, label } = body
 
     if (!access_token || !phone_number_id) {
       return NextResponse.json(
@@ -424,6 +435,13 @@ export async function POST(request: Request) {
       registered_at: registrationError ? null : registeredAt,
       subscribed_apps_at: subscribedAppsAt ?? null,
       last_registration_error: registrationError,
+      // Friendly names for the Settings list / inbox indicator / number
+      // pickers (spec 007). display/verified come straight from Meta's
+      // verifyPhoneNumber; `label` is the user's freeform tag (only
+      // overwritten when the client actually sends one).
+      display_phone_number: phoneInfo?.display_phone_number ?? null,
+      verified_name: phoneInfo?.verified_name ?? null,
+      ...(label !== undefined ? { label: label || null } : {}),
       updated_at: new Date().toISOString(),
     }
 

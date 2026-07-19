@@ -1506,7 +1506,10 @@
       "addingMode": "Novo número",
       "removeConfirm": "Remover este número da conta? Você pode adicioná-lo de novo depois reinserindo as credenciais.",
       "numberRemoved": "Número removido.",
-      "loadError": "Falha ao carregar a configuração do WhatsApp"
+      "loadError": "Falha ao carregar a configuração do WhatsApp",
+      "numberLabel": "Apelido",
+      "numberLabelPlaceholder": "ex.: Vendas, Suporte",
+      "numberLabelHint": "Nome amigável mostrado na inbox e nos seletores de número. Opcional."
     },
     "sections": {
       "overview": "Visão geral",

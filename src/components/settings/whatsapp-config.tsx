@@ -17,6 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/use-auth';
+import { numberDisplayName } from '@/lib/whatsapp/number-name';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,9 @@ type ConfigHealthRow = {
   status: string | null;
   registered_at: string | null;
   last_registration_error: string | null;
+  display_phone_number: string | null;
+  verified_name: string | null;
+  label: string | null;
   connected: boolean;
   reason?: string;
   needs_reset?: boolean;
@@ -94,6 +98,7 @@ export function WhatsAppConfig() {
 
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [wabaId, setWabaId] = useState('');
+  const [label, setLabel] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [verifyToken, setVerifyToken] = useState('');
   const [pin, setPin] = useState('');
@@ -140,6 +145,7 @@ export function WhatsAppConfig() {
     setSelectedId(sel?.id ?? null);
     setPhoneNumberId(sel?.phone_number_id || '');
     setWabaId(sel?.waba_id || '');
+    setLabel(sel?.label || '');
     // Token is never returned by the API; show it masked for an existing
     // number (re-entry required to change) and blank for a new one.
     setAccessToken(sel ? MASKED_TOKEN : '');
@@ -240,6 +246,7 @@ export function WhatsAppConfig() {
       const payload: Record<string, unknown> = {
         phone_number_id: phoneNumberId.trim(),
         waba_id: wabaId.trim() || null,
+        label: label.trim() || null,
         verify_token: verifyToken.trim() || null,
         // Optional — only sent when the user filled it in. The server
         // requires it on first save or when changing numbers; for a
@@ -479,12 +486,11 @@ export function WhatsAppConfig() {
             <CardContent className="space-y-2">
               {configs.map((c) => {
                 const active = c.id === selectedId;
-                const friendly =
-                  c.phone_info?.verified_name ||
+                const friendly = numberDisplayName(c);
+                const sub =
+                  c.display_phone_number ||
                   c.phone_info?.display_phone_number ||
                   c.phone_number_id;
-                const sub =
-                  c.phone_info?.display_phone_number || c.phone_number_id;
                 return (
                   <div
                     key={c.id}
@@ -751,6 +757,21 @@ export function WhatsAppConfig() {
                 onChange={(e) => setWabaId(e.target.value)}
                 className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">
+                {t('numberLabel')}
+                <span className="ml-1 text-muted-foreground">{t('optional')}</span>
+              </Label>
+              <Input
+                placeholder={t('numberLabelPlaceholder')}
+                value={label}
+                maxLength={40}
+                onChange={(e) => setLabel(e.target.value)}
+                className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+              />
+              <p className="text-xs text-muted-foreground">{t('numberLabelHint')}</p>
             </div>
 
             <div className="space-y-2">

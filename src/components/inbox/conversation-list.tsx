@@ -8,8 +8,9 @@ import {
   normalizeConversations,
 } from "@/lib/inbox/conversations";
 import { cn } from "@/lib/utils";
+import { numberDisplayName } from "@/lib/whatsapp/number-name";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
-import { Search, ChevronDown, X } from "lucide-react";
+import { Search, ChevronDown, X, Phone } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,10 @@ export function ConversationList({
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
+  // Which business number each thread came in on (spec 007). Only shown
+  // when the account has ≥2 numbers — with one number the badge is noise.
+  // Map: whatsapp_config_id → friendly name.
+  const [numbersById, setNumbersById] = useState<Map<string, string>>(new Map());
 
   // Keep the latest callback in a ref so the fetch effect below can
   // have a stable, empty-dep identity. Previously the fetch useCallback
@@ -134,6 +139,25 @@ export function ConversationList({
     (async () => {
       const { data } = await supabase.from("tags").select("*").order("name");
       if (!cancelled && data) setTags(data as Tag[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Account's WhatsApp numbers → friendly-name map for the per-thread
+  // indicator (spec 007). Fetched once; RLS scopes it to this account.
+  useEffect(() => {
+    const supabase = createClient();
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("whatsapp_config")
+        .select("id, label, verified_name, display_phone_number, phone_number_id");
+      if (cancelled || !data) return;
+      const map = new Map<string, string>();
+      for (const c of data) map.set(c.id, numberDisplayName(c));
+      setNumbersById(map);
     })();
     return () => {
       cancelled = true;
@@ -414,6 +438,11 @@ export function ConversationList({
                 isActive={conv.id === activeConversationId}
                 onSelect={handleSelect}
                 t={t}
+                numberName={
+                  numbersById.size >= 2 && conv.whatsapp_config_id
+                    ? numbersById.get(conv.whatsapp_config_id) ?? null
+                    : null
+                }
               />
             ))}
           </div>
@@ -428,6 +457,8 @@ interface ConversationItemProps {
   isActive: boolean;
   onSelect: (conversation: Conversation) => void;
   t: ReturnType<typeof useTranslations>;
+  /** Business number this thread came in on; null hides the badge. */
+  numberName: string | null;
 }
 
 function ConversationItem({
@@ -435,6 +466,7 @@ function ConversationItem({
   isActive,
   onSelect,
   t,
+  numberName,
 }: ConversationItemProps) {
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
@@ -479,6 +511,12 @@ function ConversationItem({
           </span>
           <span className="shrink-0 text-[10px] text-muted-foreground">{timeAgo}</span>
         </div>
+        {numberName && (
+          <span className="mt-0.5 inline-flex max-w-full items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground">
+            <Phone className="size-2.5 shrink-0" />
+            <span className="truncate">{numberName}</span>
+          </span>
+        )}
         <div className="mt-0.5 flex items-center justify-between gap-2">
           <p className="truncate text-xs text-muted-foreground">
             {conversation.last_message_text || t("noMessagesYet")}
