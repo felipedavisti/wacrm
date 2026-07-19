@@ -270,12 +270,17 @@ export async function sendMessageToConversation(
     );
   }
 
-  // WhatsApp config, account-scoped.
-  const { data: config, error: configError } = await db
-    .from('whatsapp_config')
-    .select('*')
-    .eq('account_id', accountId)
-    .single();
+  // WhatsApp config for THIS conversation's number (spec 007, decision #3):
+  // the reply goes out through the number the thread belongs to. Falls back
+  // to the account's config for a legacy conversation with no number yet
+  // (pre-migration 503). Uses .limit(1) rather than .single() so an account
+  // with several numbers never errors on the fallback (the old .single()
+  // trap — issue #363).
+  const configQuery = conversation.whatsapp_config_id
+    ? db.from('whatsapp_config').select('*').eq('id', conversation.whatsapp_config_id)
+    : db.from('whatsapp_config').select('*').eq('account_id', accountId);
+  const { data: configRows, error: configError } = await configQuery.limit(1);
+  const config = configRows?.[0];
 
   if (configError || !config) {
     throw new SendMessageError(

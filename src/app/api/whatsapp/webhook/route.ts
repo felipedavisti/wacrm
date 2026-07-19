@@ -305,7 +305,10 @@ async function processWebhook(body: { entry?: WhatsAppWebhookEntry[] }) {
           // inserts that need it for NOT NULL FK compliance. Always
           // the admin who saved the WhatsApp config.
           config.user_id,
-          decryptedAccessToken
+          decryptedAccessToken,
+          // The number (whatsapp_config) this event arrived on — stamps the
+          // conversation so threads are per-number (spec 007, migration 503).
+          config.id
         )
       }
     }
@@ -574,7 +577,10 @@ async function processMessage(
   // (contacts, conversations). Always the admin who saved the
   // WhatsApp config; the choice is arbitrary post-017 but stable.
   configOwnerUserId: string,
-  accessToken: string
+  accessToken: string,
+  // The whatsapp_config (number) this event arrived on — threads are
+  // per-number (spec 007).
+  whatsappConfigId: string
 ) {
   const senderPhone = normalizePhone(message.from)
   const contactName = contact.profile.name
@@ -589,11 +595,13 @@ async function processMessage(
   if (!contactOutcome) return
   const contactRecord = contactOutcome.contact
 
-  // Find or create conversation
+  // Find or create conversation — scoped to the number, so the same contact
+  // writing on a second number opens a SECOND thread (spec 007).
   const convResult = await findOrCreateConversation(
     accountId,
     configOwnerUserId,
-    contactRecord.id
+    contactRecord.id,
+    whatsappConfigId
   )
   if (!convResult) return
   const conversation = convResult.conversation
@@ -1056,6 +1064,7 @@ async function findOrCreateConversation(
   accountId: string,
   configOwnerUserId: string,
   contactId: string,
+  whatsappConfigId: string,
 ) {
   // Look for an existing conversation in this account, oldest-first.
   //
@@ -1075,6 +1084,7 @@ async function findOrCreateConversation(
     .select('*')
     .eq('account_id', accountId)
     .eq('contact_id', contactId)
+    .eq('whatsapp_config_id', whatsappConfigId)
     .order('created_at', { ascending: true })
     .limit(1)
 
@@ -1095,6 +1105,7 @@ async function findOrCreateConversation(
       account_id: accountId,
       user_id: configOwnerUserId,
       contact_id: contactId,
+      whatsapp_config_id: whatsappConfigId,
     })
     .select()
     .single()

@@ -54,12 +54,18 @@ export async function resolveConversationByPhone(
   }
 
   // Fail fast (and create nothing) when the account has no WhatsApp
-  // connected — the same error the send would raise anyway.
-  const { data: config } = await db
+  // connected — the same error the send would raise anyway. Uses .limit(1)
+  // rather than .maybeSingle() so a multi-number account (spec 007) doesn't
+  // error on ≥2 rows. The public API doesn't (yet) choose a number, so it
+  // defaults to the account's first — a transitional behaviour until the API
+  // exposes number selection.
+  const { data: configRows } = await db
     .from('whatsapp_config')
     .select('id')
     .eq('account_id', accountId)
-    .maybeSingle();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const config = configRows?.[0];
   if (!config) {
     throw new SendMessageError(
       'whatsapp_not_configured',
@@ -146,7 +152,8 @@ export async function resolveConversationByPhone(
     db,
     accountId,
     contactId,
-    ownerUserId
+    ownerUserId,
+    config.id
   );
 
   return { conversationId, contactId, contactCreated };
@@ -162,13 +169,15 @@ async function findOrCreateConversationRow(
   db: SupabaseClient,
   accountId: string,
   contactId: string,
-  ownerUserId: string
+  ownerUserId: string,
+  whatsappConfigId: string
 ): Promise<string> {
   const { data: existing, error: findErr } = await db
     .from('conversations')
     .select('id')
     .eq('account_id', accountId)
     .eq('contact_id', contactId)
+    .eq('whatsapp_config_id', whatsappConfigId)
     .order('created_at', { ascending: true })
     .limit(1);
 
@@ -187,6 +196,7 @@ async function findOrCreateConversationRow(
       account_id: accountId,
       user_id: ownerUserId,
       contact_id: contactId,
+      whatsapp_config_id: whatsappConfigId,
     })
     .select('id')
     .single();
@@ -198,6 +208,7 @@ async function findOrCreateConversationRow(
         .select('id')
         .eq('account_id', accountId)
         .eq('contact_id', contactId)
+        .eq('whatsapp_config_id', whatsappConfigId)
         .order('created_at', { ascending: true })
         .limit(1);
       if (raced && raced.length > 0) {

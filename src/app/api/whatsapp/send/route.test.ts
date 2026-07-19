@@ -43,13 +43,16 @@ function makeSupabaseMock() {
           // its contact); otherwise fall back to the canned existing row.
           return { data: createdConversation ?? existingConversation, error: null }
         case 'whatsapp_config':
+          // Loaded via .limit(1) now (spec 007) → data is an array.
           return {
-            data: {
-              id: 'cfg-1',
-              account_id: 'acct-1',
-              phone_number_id: 'PNID-1',
-              access_token: 'enc-token',
-            },
+            data: [
+              {
+                id: 'cfg-1',
+                account_id: 'acct-1',
+                phone_number_id: 'PNID-1',
+                access_token: 'enc-token',
+              },
+            ],
             error: null,
           }
         case 'message_templates':

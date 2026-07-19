@@ -74,12 +74,16 @@ export async function resolveAuditUserId(
   db: SupabaseClient,
   accountId: string
 ): Promise<string> {
-  const { data: config } = await db
+  // .limit(1), not .maybeSingle(): a multi-number account has ≥2 config rows
+  // (spec 007) and .maybeSingle() errors on that. Any number's owner works as
+  // the audit user — they're all the account admin (arbitrary but stable).
+  const { data: configRows } = await db
     .from('whatsapp_config')
     .select('user_id')
     .eq('account_id', accountId)
-    .maybeSingle();
-  const configOwner = config?.user_id as string | undefined;
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const configOwner = configRows?.[0]?.user_id as string | undefined;
   if (configOwner) return configOwner;
 
   const { data: account } = await db
