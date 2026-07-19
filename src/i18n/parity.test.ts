@@ -25,9 +25,9 @@ function leafKeys(obj: unknown, prefix = '', acc = new Set<string>()): Set<strin
 }
 
 describe('i18n locale parity', () => {
-  it('en.json and pt.json have identical key sets', () => {
+  it('en.json and pt-BR.json have identical key sets', () => {
     const en = leafKeys(loadLocale('en'));
-    const pt = leafKeys(loadLocale('pt'));
+    const pt = leafKeys(loadLocale('pt-BR'));
 
     const missingInPt = [...en].filter((k) => !pt.has(k)).sort();
     const missingInEn = [...pt].filter((k) => !en.has(k)).sort();
