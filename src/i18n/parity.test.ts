@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { IntlMessageFormat } from 'intl-messageformat';
 
 // Locale-dictionary key parity (spec 002, FR-002/FR-007). The dictionaries
 // must have identical key sets so no locale silently misses a string the
@@ -43,4 +44,43 @@ describe('i18n locale parity', () => {
     expect([...a].filter((k) => !b.has(k))).toEqual(['y.z']);
     expect([...b].filter((k) => !a.has(k))).toEqual([]);
   });
+});
+
+// Every message must be valid ICU MessageFormat. next-intl compiles each
+// string through IntlMessageFormat at render time, so a malformed one
+// (an unescaped `{` from a JSON/`{{1}}` example, or a rich-text tag with
+// an attribute like `<code className="…">`) throws MALFORMED_ARGUMENT /
+// INVALID_TAG and takes down the whole page tree — not just the string.
+// This gate catches that class at build time, including in future
+// translations. Literal braces must be escaped ('{{1}}') and tag classes
+// belong in the component's t.rich handler, not the message.
+function stringLeaves(
+  obj: unknown,
+  prefix = '',
+  acc: { path: string; value: string }[] = [],
+): { path: string; value: string }[] {
+  if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+    for (const [k, v] of Object.entries(obj)) {
+      stringLeaves(v, prefix ? `${prefix}.${k}` : k, acc);
+    }
+  } else if (typeof obj === 'string') {
+    acc.push({ path: prefix, value: obj });
+  }
+  return acc;
+}
+
+describe('i18n messages are valid ICU', () => {
+  for (const locale of ['en', 'pt-BR']) {
+    it(`${locale}.json compiles every message`, () => {
+      const broken: string[] = [];
+      for (const { path, value } of stringLeaves(loadLocale(locale))) {
+        try {
+          new IntlMessageFormat(value, locale);
+        } catch (err) {
+          broken.push(`${path}: ${(err as Error).message}`);
+        }
+      }
+      expect(broken).toEqual([]);
+    });
+  }
 });
