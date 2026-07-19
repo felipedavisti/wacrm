@@ -91,6 +91,24 @@ export function phoneVariants(sanitized: string): string[] {
     }
   }
 
+  // 4. Brazilian mobile 9th digit (country code 55). WhatsApp often delivers
+  //    the inbound `from` WITHOUT the mandatory 9th digit — 55 + DDD(2) + 8
+  //    digits (12 total) — while Meta's records and allowed-list keep it WITH
+  //    the 9 — 55 + DDD(2) + 9 + 8 digits (13 total). Replying to the form we
+  //    received gets rejected as "recipient not in allowed list" (131030), so
+  //    try both. `prefix` = country(55) + DDD(2).
+  if (sanitized.startsWith('55')) {
+    const prefix = sanitized.slice(0, 4)
+    const local = sanitized.slice(4)
+    if (sanitized.length === 12) {
+      // 8-digit local → add the 9: 55 DD 9 XXXXXXXX
+      push(prefix + '9' + local)
+    } else if (sanitized.length === 13 && local.startsWith('9')) {
+      // 9-digit local starting with 9 → drop it: 55 DD XXXXXXXX
+      push(prefix + local.slice(1))
+    }
+  }
+
   return [...seen]
 }
 

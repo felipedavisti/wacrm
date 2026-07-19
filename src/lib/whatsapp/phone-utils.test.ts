@@ -134,6 +134,25 @@ describe("phoneVariants", () => {
     // 1-char input is shorter than all ccLen values; both loops skip.
     expect(phoneVariants("1")).toEqual(["1"]);
   });
+
+  it("adds the Brazilian 9th digit when a 55 mobile is missing it", () => {
+    // 55 + DDD(75) + 8-digit local, as WhatsApp often delivers the inbound
+    // `from` → also try with the mandatory 9 so a reply isn't rejected (131030).
+    const out = phoneVariants("557599730529");
+    expect(out[0]).toBe("557599730529");
+    expect(out).toContain("5575999730529");
+  });
+
+  it("drops the Brazilian 9th digit when a 55 mobile has it", () => {
+    const out = phoneVariants("5575999730529");
+    expect(out).toContain("557599730529");
+  });
+
+  it("does not add a 9 variant for a non-Brazilian number", () => {
+    // Lithuanian number (CC 370) — no BR 9th-digit variant.
+    const out = phoneVariants("37063949836");
+    expect(out).not.toContain("370963949836");
+  });
 });
 
 describe("isRecipientNotAllowedError", () => {
