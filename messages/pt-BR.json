@@ -1733,5 +1733,16 @@
       "truncated": "Mostrando uma janela parcial — o uso é alto o suficiente para que apenas os registros mais recentes sejam resumidos aqui.",
       "toastLoadFailed": "Falha ao carregar o uso"
     }
+  },
+  "Notifications": {
+    "title": "Notificações",
+    "subtitle": "Conversas que outros colegas atribuem a você aparecem aqui.",
+    "markAllRead": "Marcar todas como lidas",
+    "emptyTitle": "Nenhuma notificação ainda",
+    "emptyDesc": "Você verá um alerta aqui quando alguém atribuir uma conversa a você.",
+    "unread": "Não lida",
+    "retry": "Tentar novamente",
+    "toastMarkReadFailed": "Falha ao marcar a notificação como lida",
+    "toastMarkAllFailed": "Falha ao marcar todas como lidas"
   }
 }
