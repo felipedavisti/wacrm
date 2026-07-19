@@ -363,7 +363,8 @@
         "tags": "Tags",
         "noTags": "Sem tags",
         "noDeals": "Sem negócios",
-        "addNotePlaceholder": "Adicione uma nota..."
+        "addNotePlaceholder": "Adicione uma nota...",
+        "conversations": "Conversas"
       },
       "actions": {
         "edit": "Editar",
@@ -412,7 +413,16 @@
       "toastCustomFieldsSaved": "Campos personalizados salvos",
       "toastCustomFieldsFailed": "Falha ao salvar campos personalizados",
       "toastTemplateSent": "Template \"{name}\" enviado",
-      "toastTemplateFailed": "Falha ao enviar template: {reason}"
+      "toastTemplateFailed": "Falha ao enviar template: {reason}",
+      "conversationsTab": {
+        "empty": "Nenhuma conversa ainda",
+        "noPreview": "(sem prévia)",
+        "status": {
+          "open": "Aberta",
+          "pending": "Pendente",
+          "closed": "Fechada"
+        }
+      }
     },
     "importModal": {
       "title": "Importar contatos",
