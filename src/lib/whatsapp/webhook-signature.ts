@@ -17,17 +17,29 @@ import crypto from 'node:crypto'
  *   secret. A previous version fell open with a warning log, which is
  *   unsafe for a public template: anyone who forgets the env var would
  *   be running a fully spoofable webhook.
+ *
+ * Multi-app (spec 007): a deployment can have numbers across several Meta
+ * Apps, each with its own App Secret. We try every candidate secret against
+ * the raw body until one matches (the same try-all pattern the GET verify
+ * uses with verify tokens). Pass the `secrets` explicitly for that; when
+ * omitted, it falls back to the single `META_APP_SECRET` env var
+ * (backward-compat with single-app deployments). Empty candidate set → fail
+ * closed (reject), never fall open.
  */
 export function verifyMetaWebhookSignature(
   rawBody: string,
   signatureHeader: string | null,
+  secrets?: string[],
 ): boolean {
-  const secret = process.env.META_APP_SECRET
-  if (!secret) {
+  const candidates =
+    secrets ??
+    (process.env.META_APP_SECRET ? [process.env.META_APP_SECRET] : [])
+
+  if (candidates.length === 0) {
     console.error(
-      '[webhook] META_APP_SECRET is not set — rejecting request. ' +
-        'Configure the env var (Meta → App Settings → Basic → App Secret) ' +
-        'to enable signature verification.',
+      '[webhook] no Meta App secret available — rejecting request. ' +
+        'Configure META_APP_SECRET or a meta_apps row to enable ' +
+        'signature verification.',
     )
     return false
   }
@@ -35,6 +47,17 @@ export function verifyMetaWebhookSignature(
   if (!signatureHeader) return false
   if (!signatureHeader.startsWith('sha256=')) return false
 
+  // Fail closed: true only if SOME secret produces the presented signature.
+  return candidates.some((secret) =>
+    signatureMatches(rawBody, signatureHeader, secret),
+  )
+}
+
+function signatureMatches(
+  rawBody: string,
+  signatureHeader: string,
+  secret: string,
+): boolean {
   const expected =
     'sha256=' +
     crypto.createHmac('sha256', secret).update(rawBody).digest('hex')

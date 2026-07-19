@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   sendFromEngine,
   resolveConfigByAccount,
+  resolveConfigByConversation,
   type ResolveConfig,
   type EngineMessageRow,
 } from './engine-send-base'
@@ -292,6 +293,73 @@ describe('resolveConfigByAccount — the default seam', () => {
         doMetaSend: async () => ({ messageId: 'w' }),
       }),
     ).rejects.toThrow('WhatsApp not configured for this account')
+  })
+})
+
+// Dedicated db double for the multi-number resolver: distinguishes a
+// whatsapp_config lookup by id (per-conversation) from one by account_id
+// (the fallback).
+function resolverDb(opts: {
+  conv?: { whatsapp_config_id: string | null } | null
+  configById?: { phone_number_id: string; access_token: string } | null
+  configByAccount?: { phone_number_id: string; access_token: string } | null
+}) {
+  function resolve(ops: { table: string; filters: [string, unknown][] }) {
+    if (ops.table === 'conversations') return { data: opts.conv ?? null, error: null }
+    if (ops.table === 'whatsapp_config') {
+      const byId = ops.filters.some((f) => f[0] === 'id')
+      return {
+        data: (byId ? opts.configById : opts.configByAccount) ?? null,
+        error: null,
+      }
+    }
+    return { data: null, error: null }
+  }
+  function builder(table: string) {
+    const ops = { table, filters: [] as [string, unknown][] }
+    const b: Record<string, unknown> = {
+      select: () => b,
+      eq: (k: string, v: unknown) => (ops.filters.push([k, v]), b),
+      single: () => Promise.resolve(resolve(ops)),
+      maybeSingle: () => Promise.resolve(resolve(ops)),
+    }
+    return b
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return { from: (t: string) => builder(t) } as any
+}
+
+describe('resolveConfigByConversation — multi-number (spec 007)', () => {
+  const ctx = {
+    accountId: 'acct-1',
+    conversationId: 'conv-1',
+    contactId: 'contact-1',
+  }
+
+  it('resolves the config from the conversation’s own number', async () => {
+    const db = resolverDb({
+      conv: { whatsapp_config_id: 'wc-2' },
+      configById: { phone_number_id: 'PN-2', access_token: 'enc2' },
+      configByAccount: { phone_number_id: 'PN-acct', access_token: 'encA' },
+    })
+    const out = await resolveConfigByConversation()({ db, ...ctx })
+    expect(out).toEqual({ phoneNumberId: 'PN-2', accessToken: 'decrypted:enc2' })
+  })
+
+  it('falls back to the account config when the conversation has no number', async () => {
+    const db = resolverDb({
+      conv: { whatsapp_config_id: null },
+      configByAccount: { phone_number_id: 'PN-acct', access_token: 'encA' },
+    })
+    const out = await resolveConfigByConversation()({ db, ...ctx })
+    expect(out).toEqual({ phoneNumberId: 'PN-acct', accessToken: 'decrypted:encA' })
+  })
+
+  it('throws when the conversation’s number has no config row', async () => {
+    const db = resolverDb({ conv: { whatsapp_config_id: 'wc-missing' }, configById: null })
+    await expect(resolveConfigByConversation()({ db, ...ctx })).rejects.toThrow(
+      'WhatsApp not configured for this conversation',
+    )
   })
 })
 

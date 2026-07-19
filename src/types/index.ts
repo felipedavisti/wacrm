@@ -171,6 +171,12 @@ export interface Conversation {
    * null when the conversation has never received a customer message.
    */
   last_inbound_at?: string | null;
+  /**
+   * The WhatsApp number this thread belongs to (migration 503, spec 007 —
+   * multi-number). The reply always goes out through this number. Part of
+   * the thread identity `(account_id, contact_id, whatsapp_config_id)`.
+   */
+  whatsapp_config_id?: string | null;
   unread_count: number;
   created_at: string;
   updated_at: string;
