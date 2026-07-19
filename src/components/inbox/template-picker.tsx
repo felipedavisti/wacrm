@@ -16,24 +16,41 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   ArrowLeft,
   ChevronRight,
   LayoutTemplate,
   Loader2,
+  Phone,
 } from "lucide-react";
 import { extractVariableIndices } from "@/lib/whatsapp/template-validators";
+import { numberDisplayName } from "@/lib/whatsapp/number-name";
 import { useTranslations } from "next-intl";
 
 export interface TemplateSendValues {
   body: string[];
   headerText?: string;
   buttonParams?: Record<number, string>;
+  /** Which number to send from (spec 007). Set only in cold-outreach. */
+  whatsapp_config_id?: string;
 }
 
 interface TemplatePickerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSelect: (template: MessageTemplate, values: TemplateSendValues) => void;
+  /**
+   * Show a "send from which number" picker (spec 007 cold outreach). The
+   * inbox reply path leaves this off — that thread already has its number.
+   * The picker only appears when the account actually has ≥2 numbers.
+   */
+  showNumberPicker?: boolean;
 }
 
 function renderBodyPreview(body: string, params: string[]): string {
@@ -78,6 +95,7 @@ export function TemplatePicker({
   open,
   onOpenChange,
   onSelect,
+  showNumberPicker = false,
 }: TemplatePickerProps) {
   const t = useTranslations("Inbox.templatePicker");
 
@@ -87,6 +105,13 @@ export function TemplatePicker({
   const [params, setParams] = useState<string[]>([]);
   const [headerText, setHeaderText] = useState<string>("");
   const [buttonParams, setButtonParams] = useState<Record<number, string>>({});
+  // Cold-outreach number picker (spec 007). Fetched only when enabled;
+  // the dropdown shows only with ≥2 numbers, so a single-number account
+  // (and the inbox reply path) is unaffected.
+  const [numbers, setNumbers] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -132,6 +157,26 @@ export function TemplatePicker({
     };
   }, [open]);
 
+  // Load the account's numbers for the cold-outreach picker (spec 007).
+  useEffect(() => {
+    if (!open || !showNumberPicker) return;
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("whatsapp_config")
+        .select("id, label, verified_name, display_phone_number, phone_number_id")
+        .order("created_at", { ascending: true });
+      if (cancelled || !data) return;
+      setNumbers(data.map((c) => ({ id: c.id, name: numberDisplayName(c) })));
+      // Default to the first number so a send always has one.
+      setSelectedNumberId((prev) => prev ?? data[0]?.id ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, showNumberPicker]);
+
   function resetSelection() {
     setSelected(null);
     setParams([]);
@@ -144,6 +189,12 @@ export function TemplatePicker({
     onOpenChange(next);
   }
 
+  // Stamp the chosen number onto the send values (cold outreach only).
+  const withNumber = (values: TemplateSendValues): TemplateSendValues =>
+    showNumberPicker && selectedNumberId
+      ? { ...values, whatsapp_config_id: selectedNumberId }
+      : values;
+
   function pickTemplate(template: MessageTemplate) {
     const slots = collectVariableSlots(template);
     const noInputsNeeded =
@@ -151,7 +202,7 @@ export function TemplatePicker({
       slots.headerVarCount === 0 &&
       slots.urlButtonSlots.length === 0;
     if (noInputsNeeded) {
-      onSelect(template, { body: [] });
+      onSelect(template, withNumber({ body: [] }));
       handleOpenChange(false);
       return;
     }
@@ -170,7 +221,7 @@ export function TemplatePicker({
         Object.entries(buttonParams).map(([k, v]) => [Number(k), v.trim()]),
       );
     }
-    onSelect(selected, values);
+    onSelect(selected, withNumber(values));
     handleOpenChange(false);
   }
 
@@ -203,6 +254,30 @@ export function TemplatePicker({
         </DialogHeader>
 
         {!selected ? (
+          <>
+          {showNumberPicker && numbers.length >= 2 && (
+            <div className="space-y-1.5 pb-1">
+              <Label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Phone className="size-3" />
+                {t("sendFromNumber")}
+              </Label>
+              <Select
+                value={selectedNumberId ?? undefined}
+                onValueChange={setSelectedNumberId}
+              >
+                <SelectTrigger className="border-border bg-muted">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {numbers.map((n) => (
+                    <SelectItem key={n.id} value={n.id}>
+                      {n.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="max-h-[60vh] space-y-2 overflow-y-auto">
             {loading ? (
               <div className="flex items-center justify-center py-8">
@@ -248,6 +323,7 @@ export function TemplatePicker({
               ))
             )}
           </div>
+          </>
         ) : (
           <div className="space-y-3">
             <div className="rounded-md border border-border bg-background/50 p-3">

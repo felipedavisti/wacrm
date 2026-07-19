@@ -198,11 +198,14 @@ describe('POST /api/whatsapp/send — contact_id template path', () => {
     expect(json.success).toBe(true)
     expect(json.whatsapp_message_id).toBe('wamid-1')
 
-    // A conversation was created for this contact.
+    // A conversation was created for this contact, stamped with the
+    // account's number so an inbound reply dedups onto the same thread
+    // (spec 007 — the NULL-vs-real-config split fix).
     expect(conversationInserts).toHaveLength(1)
     expect(conversationInserts[0]).toMatchObject({
       account_id: 'acct-1',
       contact_id: 'contact-1',
+      whatsapp_config_id: 'cfg-1',
     })
 
     // The template was sent to the contact's number.
@@ -223,6 +226,20 @@ describe('POST /api/whatsapp/send — contact_id template path', () => {
       template_name: 'order_update',
       sender_type: 'agent',
     })
+  })
+
+  it('accepts an explicit whatsapp_config_id (number picker) and stamps the thread', async () => {
+    // The cold-outreach number picker sends which number to use. The
+    // route validates it against the account and stamps the conversation
+    // with it; the send still succeeds.
+    const res = await postContactTemplate({ whatsapp_config_id: 'cfg-1' })
+    expect(res.status).toBe(200)
+    expect(conversationInserts).toHaveLength(1)
+    expect(conversationInserts[0]).toMatchObject({
+      contact_id: 'contact-1',
+      whatsapp_config_id: 'cfg-1',
+    })
+    expect(sendTemplateMessage).toHaveBeenCalledTimes(1)
   })
 
   it('reuses an existing conversation instead of creating a duplicate', async () => {

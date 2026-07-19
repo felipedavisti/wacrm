@@ -364,6 +364,9 @@ export function ContactDetailView({
           message_type: 'template',
           template_name: template.name,
           template_language: template.language,
+          // Which number to send from (spec 007). undefined when the
+          // account has a single number → the route uses it by default.
+          whatsapp_config_id: values.whatsapp_config_id,
           template_message_params: {
             body: values.body,
             headerText: values.headerText,
@@ -830,6 +833,7 @@ export function ContactDetailView({
       open={templatePickerOpen}
       onOpenChange={setTemplatePickerOpen}
       onSelect={handleSendTemplate}
+      showNumberPicker
     />
     </>
   );

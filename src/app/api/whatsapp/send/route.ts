@@ -77,6 +77,11 @@ export async function POST(request: Request) {
       template_message_params,
       interactive_payload,
       reply_to_message_id,
+      // Which of the account's numbers this cold-outreach send goes out
+      // on (spec 007 number picker). Only meaningful on the contact_id
+      // path — an existing conversation already has its number. Optional:
+      // omitted → the account's first number (back-compat).
+      whatsapp_config_id,
     } = body
 
     if ((!conversationIdInput && !contact_id) || !message_type) {
@@ -149,7 +154,8 @@ export async function POST(request: Request) {
         supabase,
         accountId,
         user.id,
-        contact_id
+        contact_id,
+        typeof whatsapp_config_id === 'string' ? whatsapp_config_id : null,
       )
       if (!resolved) {
         return NextResponse.json(
@@ -225,21 +231,37 @@ async function findOrCreateConversation(
   accountId: string,
   userId: string,
   contactId: string,
+  preferredConfigId: string | null,
 ): Promise<string | null> {
-  // Which number this cold-outreach thread belongs to (spec 007). For now,
-  // the account's single number (.limit(1), not .single(), so a multi-number
-  // account doesn't error); the cold-outreach number picker (Stage C) will
-  // let the agent choose. Stamping it — and scoping the find by it — keeps the
-  // thread identity (account, contact, number) consistent with the inbound
-  // webhook, so an outbound-first-then-inbound sequence converges on ONE
-  // thread instead of splitting (the NULL vs real-config dedup gap).
-  const { data: cfgRows } = await supabase
-    .from('whatsapp_config')
-    .select('id')
-    .eq('account_id', accountId)
-    .order('created_at', { ascending: true })
-    .limit(1)
-  const whatsappConfigId = cfgRows?.[0]?.id ?? null
+  // Which number this cold-outreach thread belongs to (spec 007). The
+  // caller may pick one (the number picker) — we honour it only after
+  // confirming it belongs to this account, so a forged id can't bind a
+  // thread to another account's number. Without a pick (or an invalid
+  // one) we fall back to the account's first number (.limit(1), not
+  // .single(), so a multi-number account doesn't error). Stamping it —
+  // and scoping the find by it — keeps the thread identity (account,
+  // contact, number) consistent with the inbound webhook, so an
+  // outbound-first-then-inbound sequence converges on ONE thread instead
+  // of splitting (the NULL vs real-config dedup gap).
+  let whatsappConfigId: string | null = null
+  if (preferredConfigId) {
+    const { data: picked } = await supabase
+      .from('whatsapp_config')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('id', preferredConfigId)
+      .maybeSingle()
+    whatsappConfigId = picked?.id ?? null
+  }
+  if (!whatsappConfigId) {
+    const { data: cfgRows } = await supabase
+      .from('whatsapp_config')
+      .select('id')
+      .eq('account_id', accountId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+    whatsappConfigId = cfgRows?.[0]?.id ?? null
+  }
 
   let lookup = supabase
     .from('conversations')
