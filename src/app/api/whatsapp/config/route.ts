@@ -47,18 +47,92 @@ function supabaseAdmin() {
   return _adminClient
 }
 
+// One row of whatsapp_config as GET reads it, plus the live Meta health
+// result. `checkConfigHealth` decrypts the token and verifies it against
+// Meta, mirroring the pre-multi-number single-config logic — now applied
+// per number so the Settings list can show each number's real state.
+type ConfigRow = {
+  id: string
+  phone_number_id: string
+  waba_id: string | null
+  access_token: string
+  status: string | null
+  registered_at: string | null
+  last_registration_error: string | null
+}
+
+type ConfigHealth = {
+  id: string
+  phone_number_id: string
+  waba_id: string | null
+  status: string | null
+  registered_at: string | null
+  last_registration_error: string | null
+  connected: boolean
+  phone_info?: unknown
+  reason?: string
+  needs_reset?: boolean
+  message?: string
+}
+
+async function checkConfigHealth(config: ConfigRow): Promise<ConfigHealth> {
+  const base = {
+    id: config.id,
+    phone_number_id: config.phone_number_id,
+    waba_id: config.waba_id,
+    status: config.status,
+    registered_at: config.registered_at,
+    last_registration_error: config.last_registration_error,
+  }
+  // Try to decrypt the stored token with the current ENCRYPTION_KEY.
+  // If this fails, the key changed (or differs across envs).
+  let accessToken: string
+  try {
+    accessToken = decrypt(config.access_token)
+  } catch (err) {
+    console.error('[whatsapp/config GET] Token decryption failed:', err)
+    return {
+      ...base,
+      connected: false,
+      reason: 'token_corrupted',
+      needs_reset: true,
+      message:
+        'The stored access token cannot be decrypted with the current ENCRYPTION_KEY. This usually means the key changed, or it differs between environments (local vs Hostinger vs Vercel). Reset this number below, then re-save.',
+    }
+  }
+  // Validate credentials against Meta.
+  try {
+    const phoneInfo = await verifyPhoneNumber({
+      phoneNumberId: config.phone_number_id,
+      accessToken,
+    })
+    return { ...base, connected: true, phone_info: phoneInfo }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown Meta API error'
+    console.error('[whatsapp/config GET] Meta API verification failed:', message)
+    return {
+      ...base,
+      connected: false,
+      reason: 'meta_api_error',
+      message: `Meta API rejected the credentials: ${message}`,
+    }
+  }
+}
+
 /**
  * GET /api/whatsapp/config
  *
- * Used by the "Test API Connection" button and by the page to check
- * whether the saved config is healthy. Returns 200 in all non-auth cases
- * so the UI can render an appropriate message rather than show a 500.
+ * Returns every WhatsApp number connected to the caller's account, each
+ * health-checked live against Meta in parallel (spec 007 multi-number).
+ * Returns 200 in all non-auth cases so the UI renders a message, not a 500.
  *
  * Response shape:
- *   { connected: true,  phone_info: {...} }
- *   { connected: false, reason: 'no_config',        message: '...' }
- *   { connected: false, reason: 'token_corrupted',  message: '...', needs_reset: true }
- *   { connected: false, reason: 'meta_api_error',   message: '...' }
+ *   { connected, phone_info?, reason?, needs_reset?, message?,  // legacy: primary number
+ *     configs: [ { id, phone_number_id, waba_id, status, registered_at,
+ *                  last_registration_error, connected, phone_info?/reason? }, ... ] }
+ *
+ * The top-level `connected`/`phone_info` mirror the first (primary) number
+ * so callers that predate the list (settings-overview) keep working.
  */
 export async function GET() {
   try {
@@ -80,78 +154,60 @@ export async function GET() {
           connected: false,
           reason: 'no_account',
           message: 'Your profile is not linked to an account.',
+          configs: [],
         },
         { status: 200 },
       )
     }
 
-    const { data: config, error: configError } = await supabase
+    const { data: rows, error: configError } = await supabase
       .from('whatsapp_config')
-      .select('phone_number_id, access_token, status')
+      .select(
+        'id, phone_number_id, waba_id, access_token, status, registered_at, last_registration_error',
+      )
       .eq('account_id', accountId)
-      .maybeSingle()
+      .order('created_at', { ascending: true })
 
     if (configError) {
       console.error('Error fetching whatsapp_config:', configError)
       return NextResponse.json(
-        { connected: false, reason: 'db_error', message: 'Failed to fetch configuration' },
-        { status: 200 }
+        {
+          connected: false,
+          reason: 'db_error',
+          message: 'Failed to fetch configuration',
+          configs: [],
+        },
+        { status: 200 },
       )
     }
 
-    if (!config) {
+    if (!rows || rows.length === 0) {
       return NextResponse.json(
         {
           connected: false,
           reason: 'no_config',
-          message: 'No WhatsApp configuration saved yet. Fill in the form and click Save Configuration.',
-        },
-        { status: 200 }
-      )
-    }
-
-    // Try to decrypt the stored token with the current ENCRYPTION_KEY.
-    // If this fails, the key changed (or was never consistent across envs).
-    let accessToken: string
-    try {
-      accessToken = decrypt(config.access_token)
-    } catch (err) {
-      console.error('[whatsapp/config GET] Token decryption failed:', err)
-      return NextResponse.json(
-        {
-          connected: false,
-          reason: 'token_corrupted',
-          needs_reset: true,
           message:
-            'The stored access token cannot be decrypted with the current ENCRYPTION_KEY. This usually means the key changed, or it differs between environments (local vs Hostinger vs Vercel). Click "Reset Configuration" below, then re-save.',
+            'No WhatsApp configuration saved yet. Fill in the form and click Save Configuration.',
+          configs: [],
         },
-        { status: 200 }
+        { status: 200 },
       )
     }
 
-    // Validate credentials against Meta
-    try {
-      const phoneInfo = await verifyPhoneNumber({
-        phoneNumberId: config.phone_number_id,
-        accessToken,
-      })
-      return NextResponse.json({ connected: true, phone_info: phoneInfo })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown Meta API error'
-      console.error('[whatsapp/config GET] Meta API verification failed:', message)
-      return NextResponse.json(
-        {
-          connected: false,
-          reason: 'meta_api_error',
-          message: `Meta API rejected the credentials: ${message}`,
-        },
-        { status: 200 }
-      )
-    }
+    const configs = await Promise.all((rows as ConfigRow[]).map(checkConfigHealth))
+    const primary = configs[0]
+    return NextResponse.json({
+      connected: primary.connected,
+      phone_info: primary.phone_info,
+      reason: primary.reason,
+      needs_reset: primary.needs_reset,
+      message: primary.message,
+      configs,
+    })
   } catch (error) {
     console.error('Error in WhatsApp config GET:', error)
     return NextResponse.json(
-      { connected: false, reason: 'unknown', message: 'Internal server error' },
+      { connected: false, reason: 'unknown', message: 'Internal server error', configs: [] },
       { status: 500 }
     )
   }
@@ -269,13 +325,18 @@ export async function POST(request: Request) {
       )
     }
 
-    // Look up any pre-existing row for this account so we know whether
-    // this number is already registered with Meta — if so we can skip
-    // /register when the user didn't provide a PIN this time around.
+    // Look up the row for THIS phone number in the account (spec 007:
+    // multiple numbers coexist, so we key on phone_number_id, not just
+    // account_id). Tells us whether this exact number is already
+    // registered with Meta — if so we can skip /register when the user
+    // didn't provide a PIN this time. A phone_number_id the account has
+    // never saved returns null → an INSERT below (adds a new number
+    // instead of overwriting an existing one).
     const { data: existing } = await supabase
       .from('whatsapp_config')
       .select('id, registered_at, phone_number_id')
       .eq('account_id', accountId)
+      .eq('phone_number_id', phone_number_id)
       .maybeSingle()
 
     const sameNumber =
@@ -370,7 +431,7 @@ export async function POST(request: Request) {
       const { error: updateError } = await supabase
         .from('whatsapp_config')
         .update(baseRow)
-        .eq('account_id', accountId)
+        .eq('id', existing.id)
 
       if (updateError) {
         console.error('Error updating whatsapp_config:', updateError)
@@ -432,13 +493,16 @@ export async function POST(request: Request) {
 }
 
 /**
- * DELETE /api/whatsapp/config
+ * DELETE /api/whatsapp/config?id=<configId>
  *
- * Removes the authenticated user's WhatsApp configuration row.
- * Used by the "Reset Configuration" button to recover from a corrupted
- * encrypted token (mismatched ENCRYPTION_KEY across environments).
+ * Removes ONE WhatsApp number from the caller's account (spec 007:
+ * multiple numbers coexist, so a delete must name which one). Used by
+ * each number row's "Remove" action and to recover a number whose
+ * encrypted token can't be decrypted (mismatched ENCRYPTION_KEY). The
+ * `.eq('account_id')` filter keeps a caller from deleting another
+ * account's number even if they guess its id.
  */
-export async function DELETE() {
+export async function DELETE(request: Request) {
   try {
     const supabase = await createClient()
 
@@ -459,9 +523,19 @@ export async function DELETE() {
       )
     }
 
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) {
+      return NextResponse.json(
+        { error: 'A config id is required to remove a number.' },
+        { status: 400 },
+      )
+    }
+
     const { error: deleteError } = await supabase
       .from('whatsapp_config')
       .delete()
+      .eq('id', id)
       .eq('account_id', accountId)
 
     if (deleteError) {
