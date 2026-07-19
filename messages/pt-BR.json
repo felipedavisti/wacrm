@@ -1694,5 +1694,44 @@
       "reindexTooltip": "Reprocessar os embeddings de todos os documentos (ex.: após adicionar uma chave de embeddings)",
       "loading": "Carregando…"
     }
+  },
+  "Agents": {
+    "title": "Agentes de IA",
+    "subtitle": "Seu agente de IA com chave própria — configure e teste no playground antes de ele responder aos clientes na caixa de entrada.",
+    "tabs": {
+      "playground": "Playground",
+      "setup": "Configuração",
+      "usage": "Uso"
+    },
+    "playground": {
+      "heading": "Playground",
+      "subtitle": "— teste as respostas como se você fosse um cliente",
+      "reset": "Limpar",
+      "empty": "Envie uma mensagem para ver como seu agente responderia.",
+      "emptyHint": "Ele usa sua base de conhecimento e se comporta exatamente como o bot de resposta automática — incluindo o encaminhamento.",
+      "goToSetup": "Ainda não configurou? Vá para Configuração",
+      "handoff": "Encaminharia para um humano aqui",
+      "thinking": "Pensando…",
+      "placeholder": "Digite uma mensagem de cliente…",
+      "toastNotConfigured": "Nenhum agente configurado ainda — conclua a Configuração primeiro.",
+      "toastNoReply": "Não foi possível obter uma resposta.",
+      "toastUnreachable": "Não foi possível contatar o agente."
+    },
+    "usage": {
+      "title": "Uso de tokens",
+      "description": "Tokens gastos na sua chave do provedor por rascunhos e pelo bot de resposta automática. Apenas contagens — nenhum conteúdo de mensagem é armazenado aqui.",
+      "lastNDays": "Últimos {days} dias",
+      "noUsage": "Nenhum uso de IA nos últimos {days} dias ainda.",
+      "noUsageHint": "Isso é preenchido conforme o assistente rascunha e responde automaticamente.",
+      "totalTokens": "Total de tokens",
+      "llmCalls": "Chamadas ao LLM",
+      "autoReply": "Resposta automática",
+      "drafts": "Rascunhos",
+      "tokensPerDay": "Tokens por dia",
+      "byModel": "Por modelo",
+      "calls": "{count, plural, =1 {chamada} other {chamadas}}",
+      "truncated": "Mostrando uma janela parcial — o uso é alto o suficiente para que apenas os registros mais recentes sejam resumidos aqui.",
+      "toastLoadFailed": "Falha ao carregar o uso"
+    }
   }
 }

@@ -1694,5 +1694,44 @@
       "reindexTooltip": "Re-embed all documents (e.g. after adding an embeddings key)",
       "loading": "Loading…"
     }
+  },
+  "Agents": {
+    "title": "AI Agents",
+    "subtitle": "Your bring-your-own-key AI agent — set it up, then test it in the playground before it replies to customers in the inbox.",
+    "tabs": {
+      "playground": "Playground",
+      "setup": "Setup",
+      "usage": "Usage"
+    },
+    "playground": {
+      "heading": "Playground",
+      "subtitle": "— test replies as if you were a customer",
+      "reset": "Reset",
+      "empty": "Send a message to see how your agent would reply.",
+      "emptyHint": "It uses your knowledge base and behaves exactly like the auto-reply bot — including handoff.",
+      "goToSetup": "Not set up yet? Go to Setup",
+      "handoff": "Would hand off to a human here",
+      "thinking": "Thinking…",
+      "placeholder": "Type a customer message…",
+      "toastNotConfigured": "No agent configured yet — finish Setup first.",
+      "toastNoReply": "Couldn't get a reply.",
+      "toastUnreachable": "Couldn't reach the agent."
+    },
+    "usage": {
+      "title": "Token usage",
+      "description": "Tokens spent on your provider key by drafts and the auto-reply bot. Counts only — no message content is stored here.",
+      "lastNDays": "Last {days} days",
+      "noUsage": "No AI usage in the last {days} days yet.",
+      "noUsageHint": "This fills in as the assistant drafts and auto-replies.",
+      "totalTokens": "Total tokens",
+      "llmCalls": "LLM calls",
+      "autoReply": "Auto-reply",
+      "drafts": "Drafts",
+      "tokensPerDay": "Tokens per day",
+      "byModel": "By model",
+      "calls": "{count, plural, =1 {call} other {calls}}",
+      "truncated": "Showing a partial window — usage is high enough that only the most recent records are summarized here.",
+      "toastLoadFailed": "Failed to load usage"
+    }
   }
 }
