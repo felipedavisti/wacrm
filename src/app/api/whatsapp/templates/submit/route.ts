@@ -149,11 +149,15 @@ export async function POST(request: Request) {
       metaTemplateId = `dry-run-${crypto.randomUUID()}`
       metaStatus = 'PENDING'
     } else {
-      const { data: config, error: configError } = await supabase
+      // Account's first number (spec 007): `.single()` threw PGRST116
+      // once an account had ≥2 numbers.
+      const { data: configRows, error: configError } = await supabase
         .from('whatsapp_config')
         .select('*')
         .eq('account_id', accountId)
-        .single()
+        .order('created_at', { ascending: true })
+        .limit(1)
+      const config = configRows?.[0]
       if (configError || !config) {
         return NextResponse.json(
           {

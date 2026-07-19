@@ -58,11 +58,17 @@ export type ResolveConfig = (ctx: {
  */
 export function resolveConfigByAccount(): ResolveConfig {
   return async ({ db, accountId }) => {
-    const { data: config, error } = await db
+    // Account's first number. `.single()` threw PGRST116 once an account
+    // had ≥2 numbers — but this is only the FALLBACK (the conversation had
+    // no number stamped); the by-conversation resolver above is the normal
+    // path. Fall back to the first number rather than crash.
+    const { data: configRows, error } = await db
       .from('whatsapp_config')
       .select('*')
       .eq('account_id', accountId)
-      .single()
+      .order('created_at', { ascending: true })
+      .limit(1)
+    const config = configRows?.[0]
     if (error || !config) {
       throw new Error('WhatsApp not configured for this account')
     }

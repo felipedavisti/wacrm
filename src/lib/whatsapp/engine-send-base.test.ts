@@ -74,8 +74,18 @@ function makeDb(opts: DbOpts) {
       insert: (p: unknown) => ((ops.type = 'insert'), (ops.payload = p), b),
       update: (p: unknown) => ((ops.type = 'update'), (ops.payload = p), b),
       eq: (k: string, v: unknown) => (ops.filters.push([k, v]), b),
+      order: () => b,
       single: () => Promise.resolve(resolve(ops)),
       maybeSingle: () => Promise.resolve(resolve(ops)),
+      // `.limit()` resolves to an array (spec 007: account config is read
+      // via .limit(1) now, not .single()).
+      limit: () => {
+        const r = resolve(ops) as { data: unknown; error: unknown }
+        return Promise.resolve({
+          data: r.data == null ? [] : [r.data],
+          error: r.error,
+        })
+      },
       then: (onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) =>
         Promise.resolve(resolve(ops)).then(onF, onR),
     }
@@ -320,8 +330,17 @@ function resolverDb(opts: {
     const b: Record<string, unknown> = {
       select: () => b,
       eq: (k: string, v: unknown) => (ops.filters.push([k, v]), b),
+      order: () => b,
       single: () => Promise.resolve(resolve(ops)),
       maybeSingle: () => Promise.resolve(resolve(ops)),
+      // Account fallback reads config via .limit(1) now → array (spec 007).
+      limit: () => {
+        const r = resolve(ops) as { data: unknown; error: unknown }
+        return Promise.resolve({
+          data: r.data == null ? [] : [r.data],
+          error: r.error,
+        })
+      },
     }
     return b
   }

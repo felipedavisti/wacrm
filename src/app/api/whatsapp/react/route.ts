@@ -109,11 +109,16 @@ export async function POST(request: Request) {
     }
 
     // WhatsApp config + access token. Account-scoped post-multi-user.
-    const { data: config, error: configError } = await supabase
+    // Account's first number (spec 007). `.single()` threw PGRST116 once
+    // an account had ≥2 numbers; a reaction just needs a valid sender, so
+    // fall back to the first number rather than crash.
+    const { data: configRows, error: configError } = await supabase
       .from('whatsapp_config')
       .select('phone_number_id, access_token')
       .eq('account_id', accountId)
-      .single();
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const config = configRows?.[0];
 
     if (configError || !config) {
       return NextResponse.json(

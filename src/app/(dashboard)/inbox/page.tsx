@@ -200,13 +200,16 @@ function InboxPageInner() {
         return;
       }
 
+      // An account can have several numbers (spec 007). `.maybeSingle()`
+      // threw PGRST116 on ≥2 rows → the banner wrongly showed "not
+      // connected" even with a live number. The inbox is usable as long
+      // as ANY number is connected, so fetch them all and check .some().
       const { data } = await supabase
         .from("whatsapp_config")
         .select("status")
-        .eq("account_id", accountId)
-        .maybeSingle();
+        .eq("account_id", accountId);
 
-      setWhatsappConnected(data?.status === "connected");
+      setWhatsappConnected((data ?? []).some((c) => c.status === "connected"));
     };
 
     checkConnection();

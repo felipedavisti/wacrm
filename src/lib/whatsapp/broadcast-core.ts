@@ -111,11 +111,16 @@ export async function createBroadcast(
 
   // Config (fail fast + provides the audit trail owner already resolved
   // by the caller). Meta send needs phone_number_id + decrypted token.
-  const { data: config, error: configError } = await db
+  // Account's first number (spec 007): `.single()` threw PGRST116 once an
+  // account had ≥2 numbers. (A per-broadcast number for the public API is
+  // a later refinement — the dashboard broadcast route already honours one.)
+  const { data: configRows, error: configError } = await db
     .from('whatsapp_config')
     .select('*')
     .eq('account_id', accountId)
-    .single();
+    .order('created_at', { ascending: true })
+    .limit(1);
+  const config = configRows?.[0];
   if (configError || !config) {
     throw new BroadcastError(
       'whatsapp_not_configured',

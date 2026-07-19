@@ -138,11 +138,15 @@ export async function PATCH(
     }
 
     if (!isDryRun()) {
-      const { data: config, error: configError } = await supabase
+      // Account's first number (spec 007): `.single()` threw PGRST116
+      // once an account had ≥2 numbers.
+      const { data: configRows, error: configError } = await supabase
         .from('whatsapp_config')
         .select('*')
         .eq('account_id', accountId)
-        .single()
+        .order('created_at', { ascending: true })
+        .limit(1)
+      const config = configRows?.[0]
       if (configError || !config) {
         return NextResponse.json(
           { error: 'WhatsApp not configured.' },
@@ -278,11 +282,15 @@ export async function DELETE(
     }
 
     if (existing.meta_template_id && !isDryRun()) {
-      const { data: config, error: configError } = await supabase
+      // Account's first number (spec 007): `.single()` threw PGRST116
+      // once an account had ≥2 numbers.
+      const { data: configRows, error: configError } = await supabase
         .from('whatsapp_config')
         .select('*')
         .eq('account_id', accountId)
-        .single()
+        .order('created_at', { ascending: true })
+        .limit(1)
+      const config = configRows?.[0]
       if (configError || !config || !config.waba_id) {
         return NextResponse.json(
           { error: 'WhatsApp not configured — cannot delete on Meta.' },

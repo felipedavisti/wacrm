@@ -49,8 +49,17 @@ vi.mock('./admin-client', () => {
       insert: (p: unknown) => ((ops.type = 'insert'), (ops.payload = p), b),
       update: (p: unknown) => ((ops.type = 'update'), (ops.payload = p), b),
       eq: () => b,
+      order: () => b,
       single: () => Promise.resolve(resolve(ops)),
       maybeSingle: () => Promise.resolve(resolve(ops)),
+      // Account config read via .limit(1) → array (spec 007).
+      limit: () => {
+        const r = resolve(ops) as { data: unknown; error: unknown }
+        return Promise.resolve({
+          data: r.data == null ? [] : [r.data],
+          error: r.error,
+        })
+      },
       then: (onF: (v: unknown) => unknown, onR?: (e: unknown) => unknown) =>
         Promise.resolve(resolve(ops)).then(onF, onR),
     }

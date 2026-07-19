@@ -55,11 +55,16 @@ export async function GET() {
     })
   }
 
-  const { data: config } = await supabase
+  // Account's first number (spec 007). `.maybeSingle()` threw PGRST116
+  // once an account had ≥2 numbers. (Verifying a SPECIFIC number is a
+  // later refinement — the UI would pass its id.)
+  const { data: configRows } = await supabase
     .from('whatsapp_config')
     .select('*')
     .eq('account_id', accountId)
-    .maybeSingle()
+    .order('created_at', { ascending: true })
+    .limit(1)
+  const config = configRows?.[0]
 
   if (!config) {
     return NextResponse.json({

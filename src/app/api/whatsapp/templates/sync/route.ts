@@ -150,11 +150,16 @@ export async function POST() {
       )
     }
 
-    const { data: config, error: configError } = await supabase
+    // Account's first number (spec 007): `.single()` threw PGRST116 once
+    // an account had ≥2 numbers. Template sync uses the WABA token; the
+    // first number is a safe default (per-WABA sync is a later refinement).
+    const { data: configRows, error: configError } = await supabase
       .from('whatsapp_config')
       .select('*')
       .eq('account_id', accountId)
-      .single()
+      .order('created_at', { ascending: true })
+      .limit(1)
+    const config = configRows?.[0]
 
     if (configError || !config) {
       return NextResponse.json(
