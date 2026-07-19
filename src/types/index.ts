@@ -344,6 +344,12 @@ export interface MessageTemplate {
   quality_score?: 'GREEN' | 'YELLOW' | 'RED';
   submission_error?: string;
   last_submitted_at?: string;
+  /**
+   * WABA this template belongs to (spec 007, migration 504). Null/absent
+   * on legacy rows created before multi-number — those are treated as
+   * global (shown for any number) by the template pickers.
+   */
+  waba_id?: string | null;
   created_at: string;
 }
 

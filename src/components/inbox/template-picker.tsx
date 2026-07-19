@@ -109,7 +109,7 @@ export function TemplatePicker({
   // the dropdown shows only with ≥2 numbers, so a single-number account
   // (and the inbox reply path) is unaffected.
   const [numbers, setNumbers] = useState<
-    { id: string; name: string }[]
+    { id: string; name: string; waba_id: string | null }[]
   >([]);
   const [selectedNumberId, setSelectedNumberId] = useState<string | null>(null);
 
@@ -165,10 +165,16 @@ export function TemplatePicker({
       const supabase = createClient();
       const { data } = await supabase
         .from("whatsapp_config")
-        .select("id, label, verified_name, display_phone_number, phone_number_id")
+        .select("id, label, verified_name, display_phone_number, phone_number_id, waba_id")
         .order("created_at", { ascending: true });
       if (cancelled || !data) return;
-      setNumbers(data.map((c) => ({ id: c.id, name: numberDisplayName(c) })));
+      setNumbers(
+        data.map((c) => ({
+          id: c.id,
+          name: numberDisplayName(c),
+          waba_id: c.waba_id ?? null,
+        })),
+      );
       // Default to the first number so a send always has one.
       setSelectedNumberId((prev) => prev ?? data[0]?.id ?? null);
     })();
@@ -238,6 +244,17 @@ export function TemplatePicker({
       (s) => (buttonParams[s.index] ?? "").trim().length > 0,
     );
 
+  // Templates for the chosen number's WABA (spec 007). A template with no
+  // waba_id is legacy/global and always shown, so nothing disappears for
+  // accounts that never tagged templates to a WABA. Only narrows when the
+  // number picker is on AND the selected number has a waba_id.
+  const selectedWaba = showNumberPicker
+    ? numbers.find((n) => n.id === selectedNumberId)?.waba_id ?? null
+    : null;
+  const visibleTemplates = selectedWaba
+    ? templates.filter((tpl) => !tpl.waba_id || tpl.waba_id === selectedWaba)
+    : templates;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="border-border bg-popover sm:max-w-lg">
@@ -283,7 +300,7 @@ export function TemplatePicker({
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
               </div>
-            ) : templates.length === 0 ? (
+            ) : visibleTemplates.length === 0 ? (
               <div className="rounded-md border border-border bg-background/50 p-6 text-center">
                 <p className="text-sm text-popover-foreground">{t("noApprovedTemplates")}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -291,7 +308,7 @@ export function TemplatePicker({
                 </p>
               </div>
             ) : (
-              templates.map((t) => (
+              visibleTemplates.map((t) => (
                 <button
                   key={t.id}
                   type="button"
