@@ -44,6 +44,8 @@ Como time responsável, quero que mudanças no formato dos dados de uma origem (
 
 **Independent Test**: enviar um payload com campo novo/renomeado e verificar que o lead é criado normalmente e a mudança é sinalizada.
 
+> **Caso real (Meta Form)**: as **perguntas do formulário mudam de nome** entre versões — ex.: `qual_o_principal_motivo_do_seu_interesse…` (antiga) → `o_que_fez_você_buscar_mais_segurança…` (nova). O fluxo atual (n8n `RECEBE LEADS`) trata isso com `if/else` hardcoded por versão. É exatamente o que os alertas de formato detectam (campo renomeado/novo), evitando perder a resposta silenciosamente.
+
 **Acceptance Scenarios**:
 
 1. **Given** uma origem passa a enviar um campo desconhecido, **When** o lead é processado, **Then** o lead é criado normalmente, o bruto é preservado e um **alerta de formato** é registrado.

@@ -22,6 +22,7 @@ Depende de: **008** (empresa = account), **009** (ledger, roteamento, deal no fu
 ### Session 2026-07-20
 
 - Q: Como uma conversa CTWA vira lead? → A: **Automático e imediato.** Toda conversa CTWA com `referral` gera o lead/negócio **na hora** da chegada (não sob demanda). A **qualificação e a atribuição por IA** vêm **depois**, como **automações** (fora desta 010) — o lead é criado de imediato justamente para a automação ter sobre o que agir.
+- Q (C1): Em qual funil/etapa cai o lead CTWA? → A: **Funil de "Entrada" padrão do account**, mas **configurável por empresa** — cada account pode definir o funil-alvo e a etapa inicial dos leads CTWA. (Reusa a config de destino/funil da 009.)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -85,7 +86,7 @@ Como marketing, quero que, mesmo quando o referral vier **incompleto** (faltando
 ### Functional Requirements
 
 - **FR-038**: **Captura de referral (passiva)**. O webhook de WhatsApp (007) DEVE selecionar as mensagens que contêm `referral` (dados de anúncio — tipicamente a 1ª da conversa) e armazenar o vínculo `wamid → dados da campanha` (campanha, adset, criativo, conta), associado à **conversa** (e à empresa/número dela). Mensagens sem referral são ignoradas para atribuição. A captura **não** cria lead.
-- **FR-039**: **Criação de lead automática e imediata**. Ao chegar uma conversa CTWA com `referral` (FR-038), o sistema DEVE criar **imediatamente** o lead/negócio: resolve a campanha pelo referral, resolve a empresa pelo roteamento (009) e cria o `deal` no funil com os **6 campos** de rastreamento aplicáveis (sem ID do formulário), vinculado ao contato/conversa já existentes. A criação **não** espera qualificação humana ou de IA.
+- **FR-039**: **Criação de lead automática e imediata**. Ao chegar uma conversa CTWA com `referral` (FR-038), o sistema DEVE criar **imediatamente** o lead/negócio: resolve a campanha pelo referral, usa a empresa do número da conversa (007/008) e cria o `deal` no **funil configurável da empresa (default "Entrada")** com os **6 campos** de rastreamento aplicáveis (sem ID do formulário), vinculado ao contato/conversa já existentes. A criação **não** espera qualificação humana ou de IA.
 - **FR-043**: A **qualificação e a atribuição por IA** do lead CTWA são **automações posteriores** (fora desta 010) que agem sobre o lead **já criado**. A 010 entrega o lead criado no ato; a inteligência que qualifica/atribui pluga depois (módulo de automações/agentes).
 - **FR-007**: Quando o referral não existir, o lead DEVE ser criado mesmo assim, com **pendência de atribuição** sinalizada (nunca descartado).
 - **FR-040**: A promoção DEVE ser **idempotente por conversa** — promover a mesma conversa duas vezes não cria dois deals.

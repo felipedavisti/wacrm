@@ -55,11 +55,14 @@ original — FR-020), `source TEXT`, `payload JSONB`, `headers JSONB`, `suppress
 
 ### `routing_map` (de-para central origem → empresa[+funil]) — FR-011/012/015
 
-`id UUID PK`, `source TEXT NULL`, `match_kind TEXT` (`filial`|`campaign`),
-`match_value TEXT` (ex.: `São Luís` para Site; padrão de campanha para Meta),
+`id UUID PK`, `source TEXT NULL`, `match_kind TEXT` (`filial`|`form_id`),
+`match_value TEXT` (ex.: `São Luís` para Site; `1009161721845263` para Meta),
 `account_id UUID FK`, `pipeline_id UUID NULL`, `stage_id UUID NULL`, `active BOOL`,
 `updated_by UUID`, `updated_at`. **Superfície central** (admin/TI) — RLS restrita a
-admin (não por empresa ativa). Site casa por `filial`; Meta por campanha.
+admin (não por empresa ativa). **Site casa por `filial`; Meta por `form_id`** (cada
+formulário pertence a uma filial/empresa — mapaFilial atual SSA/FSA/LNAP).
+
+> `dedup_key` do Site inclui `cpf` (B2): hash(cpf | telefone+email) + produto, janela 24h.
 
 ### Custom fields do lead (contato)
 

@@ -29,7 +29,7 @@ revisadas (Princípio II) · i18n pt-BR/en.
 - [ ] T004 Migration `514_routing_map.sql`: `routing_map` (`match_kind` filial|campaign, `match_value`, RLS admin/TI) + `account_destination_config`; e `src/lib/leads/routing.ts` que resolve empresa (+ funil/estágio) por **filial (Site)** ou **campanha (Meta)**. (FR-011, FR-012, FR-015)
 - [ ] T005 [P] Migration `515_deal_tracking.sql`: `deals.tracking JSONB` + seed dos 7 campos de rastreamento como `custom_fields` do account. (FR-005)
 - [ ] T006 `src/lib/leads/deliver-internal.ts`: cria/atualiza `contact` (dedup no account) + cria `deal` no funil-alvo (ou de entrada padrão) com `contact_id` e `tracking`. Carimba o account resolvido. (FR-014)
-- [ ] T007 Migration `513_lead_outbox.sql`: `lead_delivery_jobs` + `lead_delivery_attempts` + função **worker** agendada por `pg_cron` (~1min): reivindica jobs prontos com `FOR UPDATE SKIP LOCKED`, chama a entrega (interna via plpgsql; externa via pg_net), backoff exponencial, 5 tentativas, lease/reclaim. (FR-016, FR-034, FR-036)
+- [ ] T007 Migration `513_lead_outbox.sql`: `lead_delivery_jobs` + `lead_delivery_attempts` + o **worker** (reivindica jobs `FOR UPDATE SKIP LOCKED`, backoff exponencial, 5 tentativas, lease/reclaim). Agendamento: endpoint `POST /api/leads/worker/tick` chamado por **cron externo** (Vercel Cron) — padrão robusto em qualquer tier; `pg_cron`/`pg_net` como alternativa quando o projeto não pausa (B5). (FR-016, FR-034, FR-036)
 - [ ] T008 [P] `src/lib/leads/normalize.ts` (evento→canônico por origem) + `src/lib/leads/dedup.ts` (chaves: Site phone+email+produto 24h; Meta form_id+phone+email; idempotência `meta_lead_id`). (FR-008, FR-017..020)
 - [ ] T009 [P] Tipos TS das entidades do motor em `src/types/index.ts`.
 - [ ] T010 [P] Teste de integração do worker: SKIP LOCKED, backoff, 5 tentativas, sem reenvio duplo simultâneo. (SC-003)
@@ -53,7 +53,7 @@ revisadas (Princípio II) · i18n pt-BR/en.
 
 **Independent Test**: leadgen assinado → deal com 7 campos de rastreamento; reentrega não duplica.
 
-- [ ] T013 [US1] `GET`+`POST /api/leads/ingest/meta` em `src/app/api/leads/ingest/meta/route.ts`: `GET` verify token; `POST` valida `X-Hub-Signature-256` (reusa modelo 007/`meta_apps`), grava raw, resolve os 7 campos, idempotência por `meta_lead_id`, dedup, roteia/enfileira. (FR-001, FR-005, FR-018, FR-019, FR-037)
+- [ ] T013 [US1] `GET`+`POST /api/leads/ingest/meta`: `GET` verify token; `POST` valida `X-Hub-Signature-256` (007/`meta_apps`), grava raw (só IDs). **Enriquecimento via Graph API** (`src/lib/leads/meta-enrich.ts`, token `meta_apps`): `GET /{ad_id}` + `GET /{leadgen_id}?fields=field_data,…` + `GET /{form_id}` → contato + 7 campos de rastreamento. Idempotência por `meta_lead_id`; dedup form_id+phone+email; roteia por **`form_id`→empresa**; enfileira. O enriquecimento roda no processamento assíncrono (retry se a Graph falhar). (FR-001, FR-005, FR-018, FR-019, FR-037)
 - [ ] T014 [US1] Teste: assinatura inválida → 401 + rejeitado; leadgen válido → deal com rastreamento completo; mesmo `meta_lead_id` reentregue → não duplica. (SC-002, SC-008)
 
 **Checkpoint**: origem Meta Form ponta a ponta.

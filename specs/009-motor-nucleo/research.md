@@ -26,6 +26,13 @@ Decisões técnicas para o núcleo de ingestão/resiliência dentro do CRM
   spec externa e o mais "sem graça" (Constituição VII). **pgmq** está disponível no
   Supabase e pode substituir a fila se quisermos suas semânticas de dequeue, mas
   **não é necessário** neste volume — refinamento da nota do programa ([[programa-motor-leads]]).
+- **Agendador — pg_cron vs cron externo (B5)**: `pg_cron`/`pg_net` existem no Supabase
+  (inclusive free), mas **projeto free pausa ocioso** (cron para). Alternativa que **não
+  depende de extensão**: um endpoint `POST /api/leads/worker/tick` chamado por um **cron
+  externo** (Vercel Cron ou similar) a cada ~1min, que reivindica jobs (SKIP LOCKED) e
+  entrega. **Recomendação**: cron externo como padrão (robusto em qualquer tier);
+  pg_cron como opção quando o projeto não pausa. O corpo do worker (claim + backoff +
+  entrega) é o mesmo nos dois.
 - **Idempotência**: unique index em `leads.meta_lead_id` + `ON CONFLICT DO NOTHING`
   (FR-018); `uq (lead_id, destination)` no outbox evita duplicar perna.
 
