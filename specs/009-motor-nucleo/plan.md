@@ -54,8 +54,9 @@ central; worker outbox.
 | VII. Manutenibilidade | Outbox-como-tabela + pg_cron é o padrão "sem graça" (sem broker). Reuso máximo (funil, custom fields, webhook/meta_apps da 007). | ✅ |
 
 **Resultado**: PASS. Obrigações: revisão de segurança (II) do worker/ingestão;
-documentar divergências (V). Ponto a validar com o PO: a **superfície central**
-(routing_map + fila de não-roteados) como exceção ao escopo por-empresa-ativa (D4).
+documentar divergências (V). A **superfície central** (routing_map + fila de
+não-roteados) como exceção ao escopo por-empresa-ativa (D4) foi **decidida (B1=A)** —
+tela de admin/TI, não "account de staging".
 
 ## Project Structure
 
@@ -95,6 +96,6 @@ exigir processo sempre-ligado.
 
 > Sem violações. A "superfície central" (D4) é a única exceção ao escopo por empresa
 > ativa — justificada (decidir *qual* empresa é inerentemente cross-account) e restrita
-> a admin/TI. A validar com o PO; se rejeitada, alternativa = um "account de staging"
-> para não-roteados. Sem broker (nota reversível: migrar `lead_delivery_jobs` para pgmq
-> se o volume crescer ordens de magnitude).
+> a admin/TI. **Decidida (B1=A)** — não usar "account de staging". Sem broker (nota
+> reversível: migrar `lead_delivery_jobs` para pgmq se o volume crescer ordens de
+> magnitude).

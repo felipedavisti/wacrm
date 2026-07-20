@@ -113,7 +113,7 @@ revisadas (Princípio II) · i18n pt-BR/en.
 - [ ] T027 [P] Rótulos i18n do motor completos (pt-BR/en) + teste de paridade/ICU.
 - [ ] T028 **Revisão de segurança** (Princípio II): `/security-review` — ingestão fail-closed, worker/entrega interna carimbando o account certo, segredos de destino externo, RLS das tabelas novas + `routing_map`.
 - [ ] T029 Documentar divergências do upstream (tabelas/rotas novas, `deals.tracking`) nas migrations 512–515 e no runbook de sync. (Princípio V)
-- [ ] T030 Validar com o PO a **superfície central** (routing_map + fila de não-roteados) como exceção ao escopo por-empresa-ativa (D4); se rejeitada, aplicar a alternativa "account de staging".
+- [ ] T030 Implementar a **superfície central** (routing_map + fila de não-roteados) como tela de admin/TI — **decisão B1=A tomada** (não usar "account de staging"). Garantir acesso restrito a admin/TI.
 - [ ] T031 Rodar a validação do `quickstart.md` (5 cenários) e `/code-review` da diff da 009.
 
 ---
