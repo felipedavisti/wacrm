@@ -6,14 +6,13 @@ Todo evento aceito grava `lead_raw_events` **antes** de normalizar (FR-004/009).
 
 ## `POST /api/leads/ingest/site`
 
-Formulário/simulação do site. Substitui o webhook `lead_prd` do n8n hoje em produção
-(o site pode postar direto no CRM ou o n8n encaminhar).
+Formulário/simulação do site. **O site posta direto no nosso sistema** — o n8n é
+eliminado (não há mais o webhook intermediário `lead_prd`).
 
 - **Auth**: header com token/secret compartilhado por origem (ex.: `X-Site-Token`);
   inválido → 401 + `lead_rejected_events(reason='invalid_token')`.
-- **Body (shape real de produção)** — o dado do lead vem em `body` (o site atual
-  envia embrulhado no formato do n8n `[{ headers, body, … }]`; o endpoint aceita o
-  `body` direto ou o array e extrai `[0].body`):
+- **Body** — os campos do formulário direto no corpo do POST (é o `body` que hoje
+  vai ao n8n; sem o embrulho `headers/params/…`, que era representação interna do n8n):
 
   ```json
   {
