@@ -16,6 +16,15 @@ O cenário de negócio exige o oposto: uma mesma pessoa opera **várias empresas
 
 Esta é a **primeira spec de um programa maior** (transformar o CRM num receptor de leads multi-empresa — o "Motor de Leads"). As features seguintes (ingestão de leads, roteamento campanha→empresa, painel de reprocessamento, destino configurável por conta) **dependem desta fundação** e ficam fora do escopo aqui.
 
+## Clarifications
+
+### Session 2026-07-20
+
+- Q: Criar uma nova empresa (account) entra na 008 como fluxo do app? → A: **Não.** A criação de empresa é **operação da TI (provisionamento)**, feita fora da interface do usuário; o app NÃO DEVE expor nenhuma opção de "criar empresa/conta". O **primeiro usuário** de cada empresa é provisionado pela TI; **todos os demais** entram **apenas por convite**. Consequência: o cadastro atual, que cria um account automático a cada novo usuário, DEVE ser desligado.
+- Q: A 008 já cria os papéis SDR/closer/vendedor ou reusa só os existentes? → A: **Já cria os nomes** SDR, closer e vendedor como papéis, **além** dos existentes (owner, admin, membro), mas com **permissões equivalentes a "membro" por ora** — os rótulos entram agora; a **matriz de permissões fina** de cada papel de vendas fica para spec posterior (depende dos módulos de leads).
+- Q: Onde a "empresa ativa" (última selecionada) é persistida? → A: **No servidor, por usuário** (não no dispositivo). A seleção acompanha a pessoa em qualquer dispositivo/navegador e sobrevive a limpeza de cache.
+- Q: O que um usuário sem nenhum vínculo (sem empresa) vê? → A: Uma **tela neutra de "sem empresa"** que orienta a aguardar convite / procurar a TI, **sem acesso a dado algum**, com logout disponível. Nada de nenhuma empresa é exibido.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Operador alterna entre empresas sem deslogar (Priority: P1)
@@ -100,7 +109,7 @@ Como operação, quero que a mesma pessoa possa ter papéis diferentes em empres
 
 ### Edge Cases
 
-- **Usuário sem nenhum vínculo** (removido de todas as empresas): o app apresenta um estado claro de "sem empresa" em vez de erro ou tela vazia ambígua; nenhum dado de nenhuma empresa é exibido.
+- **Usuário sem nenhum vínculo** (recém-cadastrado sem convite ou removido de todas): o app apresenta uma **tela neutra "sem empresa"** que orienta a aguardar convite / procurar a TI, com logout disponível; nenhum dado de nenhuma empresa é exibido (ver FR-023).
 - **Empresa ativa revogada durante a sessão**: o usuário é redirecionado para outra empresa em que tenha vínculo, ou para o estado "sem empresa"; nenhuma tela continua mostrando a empresa perdida.
 - **Empresa ativa excluída**: a seleção cai para outra empresa válida do usuário (ou "sem empresa").
 - **Deep-link para recurso de empresa que não é a ativa** (mas o usuário tem vínculo): o app resolve para o contexto correto ou orienta a trocar de empresa — sem vazar nem quebrar.
@@ -131,7 +140,7 @@ Como operação, quero que a mesma pessoa possa ter papéis diferentes em empres
 
 - **FR-010**: A interface DEVE oferecer um **seletor de empresa ativa** que lista **somente** as empresas em que o usuário tem vínculo.
 - **FR-011**: Selecionar uma empresa DEVE **trocar o contexto ativo** de modo que todo o app (contatos, conversas, automações, e as demais áreas por account) passe a refletir **apenas** a empresa ativa, **sem novo login**.
-- **FR-012**: A empresa ativa DEVE **persistir** durante a navegação e ao reabrir o app (por padrão, a última selecionada pelo usuário).
+- **FR-012**: A empresa ativa DEVE **persistir no servidor, por usuário** (a última selecionada), de modo que a seleção acompanhe a pessoa em qualquer dispositivo/navegador e sobreviva à limpeza de cache. Ela DEVE valer durante a navegação e ao reabrir o app.
 - **FR-013**: Para um usuário com vínculo em **uma única** empresa, a experiência NÃO DEVE regredir — o seletor pode ficar oculto/somente-leitura e o app opera como hoje.
 - **FR-014**: Quando um usuário passa a ter (ou perde) vínculo com uma empresa, o seletor dele DEVE refletir a mudança no máximo no próximo ciclo de sessão/atualização.
 
@@ -143,14 +152,22 @@ Como operação, quero que a mesma pessoa possa ter papéis diferentes em empres
 
 **Papéis**
 
-- **FR-018**: O **papel do usuário na empresa ativa** DEVE governar o que ele pode fazer naquele contexto, reusando o modelo de papéis existente do sistema.
+- **FR-018**: O **papel do usuário na empresa ativa** DEVE governar o que ele pode fazer naquele contexto, reusando o modelo de papéis do sistema.
+- **FR-022**: O conjunto de papéis DEVE incluir, além dos existentes (owner, admin, membro), os papéis **SDR**, **closer** e **vendedor**. Nesta feature, esses três novos papéis têm **permissões equivalentes a "membro"**; a diferenciação fina de permissões por papel de vendas fica para spec posterior (o rótulo do papel já é atribuível por vínculo desde já).
+
+**Provisionamento de empresas (operação da TI)**
+
+- **FR-019**: A criação de uma empresa (account) é **operação de provisionamento da TI**, feita fora da interface do usuário. O app NÃO DEVE expor nenhuma opção de "criar empresa/conta" a nenhum usuário.
+- **FR-020**: O **primeiro usuário** de uma empresa é provisionado pela TI (junto com a empresa). **Todos os demais** usuários entram exclusivamente **por convite** (FR-006) — não há autoprovisionamento.
+- **FR-021**: O cadastro/onboarding NÃO DEVE mais criar um account automaticamente para cada novo usuário; um usuário sem convite e sem provisionamento fica sem empresa (estado "sem empresa"), não gera uma empresa nova.
+- **FR-023**: Um usuário **sem nenhum vínculo** DEVE ver uma **tela neutra "sem empresa"** — mensagem orientando a aguardar convite / procurar a TI, **sem acesso a dado de nenhuma empresa**, com **logout** disponível. Vale tanto para recém-cadastrados sem convite quanto para quem foi removido de todas as empresas.
 
 ### Key Entities *(include if feature involves data)*
 
 - **Vínculo de Conta (Account Membership)**: relação N-para-N entre um usuário e uma empresa (account), com **papel** próprio e carimbos de data. Substitui a membership única via `profiles.account_id` como fonte de verdade de pertencimento.
 - **Empresa (Account)**: unidade de tenancy — inalterada como dona dos dados. Passa a ter N usuários vinculados com papéis possivelmente distintos.
 - **Empresa Ativa (contexto de sessão)**: a empresa atualmente selecionada por um usuário; define o recorte que o app inteiro enxerga. Persistida como "última selecionada".
-- **Papel de Vínculo**: o papel do usuário **naquela** empresa (reusa o conjunto de papéis já existente; a semântica fina SDR/closer/vendedor é tratada fora desta spec — ver Assumptions).
+- **Papel de Vínculo**: o papel do usuário **naquela** empresa. Conjunto: owner, admin, membro (existentes) + SDR, closer, vendedor (novos rótulos, permissão = membro por ora; matriz fina fora desta spec — ver Assumptions).
 
 ## Success Criteria *(mandatory)*
 
@@ -165,8 +182,8 @@ Como operação, quero que a mesma pessoa possa ter papéis diferentes em empres
 
 ## Assumptions
 
-- **Papéis reusam o conjunto existente** do sistema (owner/admin/membro, per migration 017). A semântica de negócio fina de **SDR/closer/vendedor** e uma **matriz de permissões granular** por papel ficam **fora desta spec** (feature posterior; dependem, inclusive, dos módulos de leads). Aqui o papel apenas passa a ser **por vínculo** em vez de global.
-- **Empresa ativa** persiste como "última selecionada" por usuário; no primeiro acesso pós-migração, cai na única empresa que o usuário possui.
+- **Papéis**: aos existentes (owner/admin/membro, per migration 017) somam-se **SDR, closer e vendedor** como novos rótulos de papel, atribuíveis por vínculo. Nesta spec os três novos têm **permissões = "membro"**; a **matriz de permissões granular** por papel de vendas fica **fora desta spec** (feature posterior; depende dos módulos de leads). O ponto central aqui é o papel passar a ser **por vínculo** em vez de global.
+- **Empresa ativa** persiste no **servidor, por usuário** ("última selecionada"); no primeiro acesso pós-migração, cai na única empresa que o usuário possui.
 - **i18n pt-BR/en** para todos os rótulos novos (seletor de empresa, gestão de acesso, estado "sem empresa"), com paridade validada (feature 002).
 - **Migrations na próxima faixa livre**; a divergência do upstream (derrubar `idx_accounts_one_per_owner` e a membership via FK única) é **deliberada e documentada** (Constituição, Princípio V — disciplina de sync com upstream).
 - A concessão de acesso a uma empresa adicional **reusa o mecanismo de convite** existente (account_invitations + RPCs de convite), com aceite — decisão fechada (FR-006).
@@ -177,7 +194,7 @@ Como operação, quero que a mesma pessoa possa ter papéis diferentes em empres
 - Qualquer funcionalidade de **leads / Motor**: ingestão de origens, `routing_map` (campanha→empresa), outbox/retry, painel de reprocessamento, **destino configurável por conta** — tudo isso é da **009+**.
 - **Matriz de permissões granular** por papel de vendas (SDR/closer/vendedor).
 - Uma **camada organizacional acima do account** (grupo/holding com visão consolidada/roll-up entre empresas) — não é necessária: cada empresa é um account independente e a visão é sempre por empresa ativa.
-- Autoprovisionamento/criação em massa de empresas.
+- **Fluxo de app para criar empresas**: a criação de empresa é provisionamento da TI (fora da UI, via seed/back-office) — não há tela de "criar empresa" (FR-019). A mecânica exata desse provisionamento (script/seed/painel interno) é decisão de implementação/operação, não desta spec de produto.
 
 ## Dependências
 
