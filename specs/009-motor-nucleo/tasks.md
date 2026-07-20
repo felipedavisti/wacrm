@@ -26,7 +26,7 @@ revisadas (Princípio II) · i18n pt-BR/en.
 **⚠️ CRITICAL**: nenhuma US começa antes disto.
 
 - [ ] T003 Migration `512_lead_core.sql`: `lead_ingestions`, `lead_raw_events`, `lead_rejected_events` (+RLS por `account_id`/`is_account_member`; leads `pending` sem account ficam fora do painel de conta). (FR-004, FR-008..010)
-- [ ] T004 Migration `514_routing_map.sql`: `routing_map` (RLS admin/TI) + `account_destination_config`; e `src/lib/leads/routing.ts` que resolve empresa (+ funil/estágio) por origem/campanha. (FR-011, FR-012, FR-015)
+- [ ] T004 Migration `514_routing_map.sql`: `routing_map` (`match_kind` filial|campaign, `match_value`, RLS admin/TI) + `account_destination_config`; e `src/lib/leads/routing.ts` que resolve empresa (+ funil/estágio) por **filial (Site)** ou **campanha (Meta)**. (FR-011, FR-012, FR-015)
 - [ ] T005 [P] Migration `515_deal_tracking.sql`: `deals.tracking JSONB` + seed dos 7 campos de rastreamento como `custom_fields` do account. (FR-005)
 - [ ] T006 `src/lib/leads/deliver-internal.ts`: cria/atualiza `contact` (dedup no account) + cria `deal` no funil-alvo (ou de entrada padrão) com `contact_id` e `tracking`. Carimba o account resolvido. (FR-014)
 - [ ] T007 Migration `513_lead_outbox.sql`: `lead_delivery_jobs` + `lead_delivery_attempts` + função **worker** agendada por `pg_cron` (~1min): reivindica jobs prontos com `FOR UPDATE SKIP LOCKED`, chama a entrega (interna via plpgsql; externa via pg_net), backoff exponencial, 5 tentativas, lease/reclaim. (FR-016, FR-034, FR-036)

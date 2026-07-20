@@ -53,12 +53,20 @@ original — FR-020), `source TEXT`, `payload JSONB`, `headers JSONB`, `suppress
 `id BIGSERIAL`, `job_id UUID FK`, `attempt_no INT`, `started_at`, `finished_at`,
 `outcome` (`success`|`error`), `error_class` (`retryable`|`permanent`), `reason TEXT`.
 
-### `routing_map` (de-para central campanha/origem → empresa[+funil]) — FR-011/012/015
+### `routing_map` (de-para central origem → empresa[+funil]) — FR-011/012/015
 
-`id UUID PK`, `source TEXT NULL`, `campaign_match TEXT`, `account_id UUID FK`,
-`pipeline_id UUID NULL`, `stage_id UUID NULL`, `active BOOL`, `updated_by UUID`,
-`updated_at`. **Superfície central** (admin/TI) — RLS restrita a admin (não por
-empresa ativa).
+`id UUID PK`, `source TEXT NULL`, `match_kind TEXT` (`filial`|`campaign`),
+`match_value TEXT` (ex.: `São Luís` para Site; padrão de campanha para Meta),
+`account_id UUID FK`, `pipeline_id UUID NULL`, `stage_id UUID NULL`, `active BOOL`,
+`updated_by UUID`, `updated_at`. **Superfície central** (admin/TI) — RLS restrita a
+admin (não por empresa ativa). Site casa por `filial`; Meta por campanha.
+
+### Custom fields do lead (contato)
+
+Os campos do Site `cpf`, `data_nascimento`, `sexo`, `estado_civil` e o `produto` são
+gravados como **`custom_fields`/valores** do contato (reuso da infra existente).
+`cpf` é **PII sensível** (LGPD): retido em claro nesta fase, protegido por RLS/acesso
+por empresa; anonimização/mascaramento = decisão futura (não bloqueia).
 
 ### `account_destination_config` (destino por conta — FR-036)
 

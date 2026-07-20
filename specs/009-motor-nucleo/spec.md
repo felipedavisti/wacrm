@@ -25,6 +25,7 @@ Esta feature é o **núcleo** do programa Motor de Leads e depende da fundação
 - Q1: "Praça" ainda existe? → A: **Não** — dropada como conceito de primeira classe. Empresa = `account` já dá o recorte (Salvador/São Luís são accounts distintos). Se um recorte adicional for preciso, vira tag/campo do lead, não primitiva do motor. (Some da FR-011 e do de-para.)
 - Q2: O lead vira entidade nova ou reusa o CRM? → A: **Reusa o Funil + ledger de ingestão.** Um lead entregue vira um **`deal` (negócio) num `pipeline` (funil)**, com `contact` criado e vinculado (`deals.contact_id`) e os campos de rastreamento como **custom fields**. O CRM já tem `pipelines`/`pipeline_stages`/`deals`/`custom_fields` e suporta **vários funis por empresa** (funil de SDR, closer, vendas, suporte) — é só ampliar. Por baixo, o motor mantém um **ledger de ingestão** (evento bruto + status + tentativas) separado, que sustenta "nunca descartar" e o reprocessamento; ao entregar, o ledger referencia o `deal`/`contact` criados.
 - Q3: O painel de leads é por empresa ativa ou console central? → A: **Por empresa ativa** — o painel de operação mostra os leads do account ativo; troca de empresa para ver outro (consistente com a 008, sem nova superfície cross-account).
+- Payload real do Site (produção, via n8n `lead_prd`): `nome, celular, telefone, email, cpf, data_nascimento, produto, filial, sexo, estado_civil`. Consequências: (a) **Site roteia por `filial` → empresa** (explícito, não por campanha — FR-011); (b) `cpf/data_nascimento/sexo/estado_civil` viram **custom fields** do contato (`cpf` é PII sensível — LGPD, Constituição I); (c) `produto` normaliza removendo o prefixo "Plano " para o dedup; (d) o endpoint aceita o corpo direto ou o embrulho do n8n (`[{ body }]`). Detalhe no contrato `contracts/http-ingest.md`.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -159,7 +160,7 @@ Como gestor, quero um painel com o volume do dia por origem e por empresa, a tax
 
 **Roteamento por empresa**
 
-- **FR-011**: O sistema DEVE resolver a **Empresa (account)** de cada lead a partir de um **de-para gerenciável** (campanha/origem → empresa), antes da entrega.
+- **FR-011**: O sistema DEVE resolver a **Empresa (account)** de cada lead a partir de um **de-para gerenciável**, antes da entrega, pela chave natural da origem: **Site → por `filial`** (o formulário já envia a filial, ex.: "São Luís" → account "Vitalmed São Luís"); **Meta → por campanha**. Sem correspondência → pendência de roteamento (fila central), nunca perda.
 - **FR-012**: O de-para DEVE ser consultável e atualizável pela operação, sem intervenção técnica (responsável: Marketing/Tráfego pago).
 - **FR-013**: Todo dado do motor (leads, tentativas, histórico) DEVE ser segregado por empresa (reusa o RLS/`is_account_member` da 008). O painel respeita o recorte por empresa.
 
