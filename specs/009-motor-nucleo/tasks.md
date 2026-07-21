@@ -16,7 +16,7 @@ revisadas (Princípio II) · i18n pt-BR/en.
 
 ## Phase 1: Setup
 
-- [ ] T001 Confirmar baseline (008 aplicada; `tsc`/lint verdes) e habilitar extensões `pg_cron` e `pg_net` no projeto dev; fixar `512_` como próxima faixa.
+- [x] T001 Baseline: 008 mergeada na `main` e aplicada no dev (508–512); build/tsc/suíte ✅. **Faixa da 009 = `513_`+** (a `512_` foi o hotfix de escopo da 008). **`pg_cron`/`pg_net` NÃO são necessários**: o worker é endpoint da app (cron externo) e faz a entrega em Node — só o CLAIM atômico vive no banco (RPC com SKIP LOCKED). Menos dependência e funciona em qualquer tier.
 - [ ] T002 [P] Criar namespaces i18n dos rótulos do motor (painel, detalhe, reprocessar, roteamento, destino) em `messages/pt-BR.json`/`en.json` (placeholders).
 
 ---
@@ -25,12 +25,12 @@ revisadas (Princípio II) · i18n pt-BR/en.
 
 **⚠️ CRITICAL**: nenhuma US começa antes disto.
 
-- [ ] T003 Migration `512_lead_core.sql`: `lead_ingestions`, `lead_raw_events`, `lead_rejected_events` (+RLS por `account_id`/`is_account_member`; leads `pending` sem account ficam fora do painel de conta). (FR-004, FR-008..010)
+- [x] T003 Migration **`513_lead_core.sql`**: `lead_ingestions` (ledger, com `target_pipeline_id/stage_id` e ponteiros `contact_id/deal_id`), `lead_raw_events` (append-only, com `suppressed`), `lead_rejected_events`. RLS com **`is_active_member`** (lição da 512); leitura apenas — escrita é service_role/RPC (deny-by-default). Leads sem empresa ficam invisíveis ao cliente (superfície central). Índices: unique `meta_lead_id`, dedup, painel, fila de não-roteados. (FR-004, FR-008..010, FR-018)
 - [ ] T004 Migration `514_routing_map.sql`: `routing_map` (`match_kind` filial|campaign, `match_value`, RLS admin/TI) + `account_destination_config`; e `src/lib/leads/routing.ts` que resolve empresa (+ funil/estágio) por **filial (Site)** ou **campanha (Meta)**. (FR-011, FR-012, FR-015)
-- [ ] T005 [P] Migration `515_deal_tracking.sql`: `deals.tracking JSONB` + seed dos 7 campos de rastreamento como `custom_fields` do account. (FR-005)
+- [x] T005 [P] Migration **`516_deal_tracking.sql`**: `deals.tracking JSONB` (+índice GIN) com o mapeamento `ink_new_*` documentado. Decisão: JSONB no deal em vez de linhas de custom-field (B4) — mantém a mudança aditiva sobre a tabela do upstream e absorve campos de origens futuras sem migration. (FR-005)
 - [ ] T006 `src/lib/leads/deliver-internal.ts`: cria/atualiza `contact` (dedup no account) + cria `deal` no funil-alvo (ou de entrada padrão) com `contact_id` e `tracking`. Carimba o account resolvido. (FR-014)
 - [ ] T007 Migration `513_lead_outbox.sql`: `lead_delivery_jobs` + `lead_delivery_attempts` + o **worker** (reivindica jobs `FOR UPDATE SKIP LOCKED`, backoff exponencial, 5 tentativas, lease/reclaim). Agendamento: endpoint `POST /api/leads/worker/tick` chamado por **cron externo** (Vercel Cron) — padrão robusto em qualquer tier; `pg_cron`/`pg_net` como alternativa quando o projeto não pausa (B5). (FR-016, FR-034, FR-036)
-- [ ] T008 [P] `src/lib/leads/normalize.ts` (evento→canônico por origem) + `src/lib/leads/dedup.ts` (chaves: Site phone+email+produto 24h; Meta form_id+phone+email; idempotência `meta_lead_id`). (FR-008, FR-017..020)
+- [x] T008 [P] `canonical.ts` (modelo único + helpers de telefone/produto), `normalize.ts` (Site e Meta Form → canônico) e `dedup.ts` (Site: **cpf** senão tel+email, + produto, janela 24h; Meta: form_id+contato, sem janela). Funções **puras**. **20 testes verdes** com os payloads REAIS de produção (site + webhook leadgen + enriquecimento Graph), incluindo: 7 campos de rastreamento, perguntas do form preservadas (nomes mudam entre versões), lead criado mesmo sem enriquecimento. (FR-008, FR-017..020)
 - [ ] T009 [P] Tipos TS das entidades do motor em `src/types/index.ts`.
 - [ ] T010 [P] Teste de integração do worker: SKIP LOCKED, backoff, 5 tentativas, sem reenvio duplo simultâneo. (SC-003)
 
