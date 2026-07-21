@@ -1434,6 +1434,14 @@
       "owner": "Proprietário",
       "ownerHint": "Controle total sobre conta e faturamento"
     },
+    "positions": {
+      "sdr": "SDR",
+      "closer": "Closer",
+      "vendedor": "Vendedor",
+      "none": "Sem cargo",
+      "label": "Cargo",
+      "updatedToast": "Cargo de {name} atualizado"
+    },
     "whatsapp": {
       "title": "Conexão do WhatsApp",
       "description": "Conecte sua API do WhatsApp Business da Meta. Credenciais, webhook e etapas de configuração ficam todos aqui.",
@@ -1769,5 +1777,16 @@
     "retry": "Tentar novamente",
     "toastMarkReadFailed": "Falha ao marcar a notificação como lida",
     "toastMarkAllFailed": "Falha ao marcar todas como lidas"
+  },
+  "AccountSwitcher": {
+    "label": "Empresa",
+    "switchTo": "Trocar de empresa",
+    "current": "Empresa atual",
+    "toastSwitchFailed": "Falha ao trocar de empresa"
+  },
+  "NoAccount": {
+    "title": "Você ainda não está em uma empresa",
+    "description": "Peça um convite ao administrador da sua empresa ou procure a equipe de TI para liberar o seu acesso.",
+    "signOut": "Sair"
   }
 }

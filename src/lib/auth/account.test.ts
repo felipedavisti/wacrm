@@ -16,14 +16,32 @@ interface BuilderCall {
   table: string;
   columns?: string;
   eqArgs: [string, unknown][];
+  /** Payload passed to .update(), when this call was a write. */
+  update?: unknown;
 }
+
+// `byTable[table]` may be a single result (reused for every query on
+// that table) or an array consumed in order — needed since spec 008,
+// where `profiles` can be read and then updated (self-heal) in one
+// getCurrentAccount call.
+type QueuedResult = { data: unknown; error: unknown };
 
 function makeClient(opts: {
   user: { id: string } | null;
   userErr?: unknown;
-  byTable: Record<string, { data: unknown; error: unknown }>;
+  byTable: Record<string, QueuedResult | QueuedResult[]>;
+  rpcResult?: QueuedResult;
 }) {
   const calls: BuilderCall[] = [];
+  const rpcCalls: Array<{ fn: string; args: unknown }> = [];
+
+  const nextResult = (table: string): QueuedResult => {
+    const queued = opts.byTable[table];
+    if (Array.isArray(queued)) {
+      return queued.shift() ?? { data: null, error: null };
+    }
+    return queued ?? { data: null, error: null };
+  };
 
   const from = (table: string) => {
     const call: BuilderCall = { table, eqArgs: [] };
@@ -33,14 +51,29 @@ function makeClient(opts: {
         call.columns = columns;
         return builder;
       },
+      update(payload: unknown) {
+        call.update = payload;
+        return builder;
+      },
       eq(col: string, val: unknown) {
         call.eqArgs.push([col, val]);
         return builder;
       },
+      order() {
+        return builder;
+      },
+      limit() {
+        return builder;
+      },
       maybeSingle() {
-        return Promise.resolve(
-          opts.byTable[table] ?? { data: null, error: null },
-        );
+        return Promise.resolve(nextResult(table));
+      },
+      // Awaited update chains (`await ...update().eq()`) land here.
+      then(
+        resolve: (v: QueuedResult) => unknown,
+        reject?: (e: unknown) => unknown,
+      ) {
+        return Promise.resolve(nextResult(table)).then(resolve, reject);
       },
     };
     return builder;
@@ -48,6 +81,7 @@ function makeClient(opts: {
 
   return {
     calls,
+    rpcCalls,
     client: {
       auth: {
         getUser: () =>
@@ -57,6 +91,10 @@ function makeClient(opts: {
           }),
       },
       from,
+      rpc: (fn: string, args: unknown) => {
+        rpcCalls.push({ fn, args });
+        return Promise.resolve(opts.rpcResult ?? { data: null, error: null });
+      },
     },
   };
 }
@@ -66,9 +104,8 @@ vi.mock("@/lib/supabase/server", () => ({
   createClient: () => createClient(),
 }));
 
-const { getCurrentAccount, UnauthorizedError, ForbiddenError } = await import(
-  "./account"
-);
+const { getCurrentAccount, UnauthorizedError, ForbiddenError, NoAccountError } =
+  await import("./account");
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -144,17 +181,69 @@ describe("getCurrentAccount", () => {
     expect(err.message).toBe("Could not load account context");
   });
 
-  it("rejects a profile not linked to an account", async () => {
-    const { client } = makeClient({
+  // ------------------------------------------------------------
+  // Spec 008 (multi-conta): NULL active-account pointer.
+  // ------------------------------------------------------------
+
+  it("throws NoAccountError when the user has no memberships at all", async () => {
+    const { client, calls } = makeClient({
       user: { id: "user-1" },
       byTable: {
         profiles: { data: { account_id: null, account_role: null }, error: null },
+        account_members: { data: null, error: null },
       },
     });
     createClient.mockReturnValue(client);
-    await expect(getCurrentAccount()).rejects.toThrow(
-      "Profile is not linked to an account",
-    );
+    const err = await getCurrentAccount().catch((e) => e);
+    expect(err).toBeInstanceOf(NoAccountError);
+    // Still a ForbiddenError for every existing API route (403).
+    expect(err).toBeInstanceOf(ForbiddenError);
+    // It looked for a fallback membership before giving up.
+    expect(calls.map((c) => c.table)).toEqual(["profiles", "account_members"]);
+  });
+
+  it("self-heals a NULL pointer by activating the earliest membership", async () => {
+    const { client, rpcCalls } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        // Pointer is NULL (active company deleted/revoked).
+        profiles: { data: { account_id: null, account_role: null }, error: null },
+        account_members: {
+          data: { account_id: "acct-2", role: "agent" },
+          error: null,
+        },
+        accounts: { data: { id: "acct-2", name: "Filial 2" }, error: null },
+      },
+      rpcResult: { data: "acct-2", error: null },
+    });
+    createClient.mockReturnValue(client);
+
+    const ctx = await getCurrentAccount();
+
+    expect(ctx).toMatchObject({
+      accountId: "acct-2",
+      role: "agent",
+      account: { id: "acct-2", name: "Filial 2" },
+    });
+    // The heal goes through the sanctioned RPC — never a direct
+    // profiles UPDATE (the 508 guard trigger forbids it).
+    expect(rpcCalls).toEqual([
+      { fn: "set_active_account", args: { p_account_id: "acct-2" } },
+    ]);
+  });
+
+  it("rejects a missing profile row as a plain ForbiddenError", async () => {
+    const { client } = makeClient({
+      user: { id: "user-1" },
+      byTable: {
+        profiles: { data: null, error: null },
+      },
+    });
+    createClient.mockReturnValue(client);
+    const err = await getCurrentAccount().catch((e) => e);
+    expect(err).toBeInstanceOf(ForbiddenError);
+    expect(err).not.toBeInstanceOf(NoAccountError);
+    expect(err.message).toBe("Profile is not linked to an account");
   });
 
   it("rejects an account_id that resolves to no readable account", async () => {

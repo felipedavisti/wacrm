@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/layout/mode-toggle";
+import { AccountSwitcher } from "@/components/layout/account-switcher";
 
 const pageTitles: Record<string, string> = {
   "/dashboard": "dashboard",
@@ -74,6 +75,8 @@ export function Header({ onOpenSidebar }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* Company switcher (spec 008) — hidden with a single company. */}
+        <AccountSwitcher />
         <ModeToggle />
 
         <DropdownMenu>

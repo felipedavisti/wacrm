@@ -26,7 +26,7 @@ import {
   inviteExpiresAt,
   inviteUrl,
 } from "@/lib/auth/invitations";
-import { isAccountRole } from "@/lib/auth/roles";
+import { isAccountRole, isSalesPosition } from "@/lib/auth/roles";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -179,7 +179,12 @@ export async function POST(request: Request) {
     if (!limit.success) return rateLimitResponse(limit);
 
     const body = (await request.json().catch(() => null)) as
-      | { role?: unknown; expiresInDays?: unknown; label?: unknown }
+      | {
+          role?: unknown;
+          expiresInDays?: unknown;
+          label?: unknown;
+          position?: unknown;
+        }
       | null;
 
     const role = body?.role;
@@ -191,6 +196,20 @@ export async function POST(request: Request) {
         { error: "'role' must be one of admin, agent, viewer" },
         { status: 400 },
       );
+    }
+
+    // Sales position the invite carries (spec 008, FR-006/FR-022).
+    // Optional; the redeem RPC copies it onto the membership row.
+    const positionRaw = body?.position;
+    let position: string | null = null;
+    if (positionRaw !== undefined && positionRaw !== null) {
+      if (!isSalesPosition(positionRaw)) {
+        return NextResponse.json(
+          { error: "'position' must be one of sdr, closer, vendedor" },
+          { status: 400 },
+        );
+      }
+      position = positionRaw;
     }
 
     const expiresInDaysRaw = body?.expiresInDays;
@@ -222,11 +241,12 @@ export async function POST(request: Request) {
         account_id: ctx.accountId,
         token_hash: hash,
         role,
+        position,
         created_by_user_id: ctx.userId,
         label,
         expires_at: expiresAt.toISOString(),
       })
-      .select("id, role, label, expires_at, created_at")
+      .select("id, role, position, label, expires_at, created_at")
       .single();
 
     if (error || !data) {

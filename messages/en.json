@@ -1434,6 +1434,14 @@
       "owner": "Owner",
       "ownerHint": "Full control over account and billing"
     },
+    "positions": {
+      "sdr": "SDR",
+      "closer": "Closer",
+      "vendedor": "Salesperson",
+      "none": "No position",
+      "label": "Position",
+      "updatedToast": "Position of {name} updated"
+    },
     "whatsapp": {
       "title": "WhatsApp connection",
       "description": "Connect your Meta WhatsApp Business API. Credentials, webhook, and setup steps all live here.",
@@ -1769,5 +1777,16 @@
     "retry": "Retry",
     "toastMarkReadFailed": "Failed to mark notification as read",
     "toastMarkAllFailed": "Failed to mark all as read"
+  },
+  "AccountSwitcher": {
+    "label": "Company",
+    "switchTo": "Switch company",
+    "current": "Current company",
+    "toastSwitchFailed": "Failed to switch company"
+  },
+  "NoAccount": {
+    "title": "You're not part of a company yet",
+    "description": "Ask your company administrator for an invitation, or contact the IT team to get access.",
+    "signOut": "Sign out"
   }
 }

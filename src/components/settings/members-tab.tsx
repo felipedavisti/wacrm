@@ -66,7 +66,11 @@ import { useTranslations } from 'next-intl';
 import { RequireRole } from '@/components/auth/require-role';
 import { useAuth } from '@/hooks/use-auth';
 import { usePresence } from '@/hooks/use-presence';
-import type { AccountRole } from '@/lib/auth/roles';
+import {
+  SALES_POSITIONS,
+  type AccountRole,
+  type SalesPosition,
+} from '@/lib/auth/roles';
 import { presenceLabel, summarize } from '@/lib/presence';
 import {
   PRESENCE_DOT_CLASS,
@@ -82,8 +86,14 @@ interface Member {
   email: string | null;
   avatar_url: string | null;
   role: AccountRole;
+  /** Sales position within this account (spec 008, FR-022). */
+  position?: SalesPosition | null;
   joined_at: string;
 }
+
+// Sentinel for "no position" in the Select (Base UI Select values are
+// strings; null can't be an item value).
+const POSITION_NONE = 'none' as const;
 
 interface Invitation {
   id: string;
@@ -127,6 +137,7 @@ function fmtExpiresIn(iso: string, t: (key: string, values?: Record<string, stri
 export function MembersTab() {
   const t = useTranslations('Settings.members');
   const tRoles = useTranslations('Settings.roles');
+  const tPositions = useTranslations('Settings.positions');
   const { user, canManageMembers } = useAuth();
   const { getPresence, getRow, now } = usePresence();
 
@@ -222,6 +233,52 @@ export function MembersTab() {
         ),
       );
       console.error('[MembersTab] role change error:', err);
+      toast.error('Could not reach the server');
+    } finally {
+      setPendingMemberAction(null);
+    }
+  }
+
+  async function handlePositionChange(
+    member: Member,
+    next: SalesPosition | typeof POSITION_NONE,
+  ) {
+    const nextPosition = next === POSITION_NONE ? null : next;
+    if ((member.position ?? null) === nextPosition) return;
+    // Same optimistic-update + revert-on-failure pattern as roles.
+    const previous = member.position ?? null;
+    setPendingMemberAction(member.user_id);
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.user_id === member.user_id ? { ...m, position: nextPosition } : m,
+      ),
+    );
+    try {
+      const res = await fetch(`/api/account/members/${member.user_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ position: nextPosition }),
+      });
+      if (!res.ok) {
+        setMembers((prev) =>
+          prev.map((m) =>
+            m.user_id === member.user_id ? { ...m, position: previous } : m,
+          ),
+        );
+        const payload = await res.json().catch(() => ({}));
+        toast.error(payload.error || 'Failed to update position');
+        return;
+      }
+      toast.success(
+        tPositions('updatedToast', { name: member.full_name || t('unnamed') }),
+      );
+    } catch (err) {
+      setMembers((prev) =>
+        prev.map((m) =>
+          m.user_id === member.user_id ? { ...m, position: previous } : m,
+        ),
+      );
+      console.error('[MembersTab] position change error:', err);
       toast.error('Could not reach the server');
     } finally {
       setPendingMemberAction(null);
@@ -446,6 +503,46 @@ export function MembersTab() {
                         {tRoles(member.role)}
                       </span>
                     )}
+
+                    {/* Sales position (spec 008, FR-022). Editable by
+                        admin+ on any row — the position is a business
+                        label, orthogonal to permissions, so even the
+                        owner/self rows can carry one. Read-only chip
+                        for everyone else (only when set). */}
+                    {canManageMembers ? (
+                      <Select
+                        value={member.position ?? POSITION_NONE}
+                        onValueChange={(v) =>
+                          v &&
+                          handlePositionChange(
+                            member,
+                            v as SalesPosition | typeof POSITION_NONE,
+                          )
+                        }
+                      >
+                        <SelectTrigger
+                          className="w-32 bg-muted border-border text-foreground"
+                          disabled={isBusy}
+                          aria-label={tPositions('label')}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={POSITION_NONE}>
+                            {tPositions('none')}
+                          </SelectItem>
+                          {SALES_POSITIONS.map((p) => (
+                            <SelectItem key={p} value={p}>
+                              {tPositions(p)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : member.position ? (
+                      <span className="inline-flex items-center rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                        {tPositions(member.position)}
+                      </span>
+                    ) : null}
 
                     {/* Remove. Admin+ only; never on the owner row;
                         never on yourself. Pre-polish styling was

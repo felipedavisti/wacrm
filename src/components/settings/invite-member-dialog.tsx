@@ -76,8 +76,12 @@ export function InviteMemberDialog({
 }: InviteMemberDialogProps) {
   const t = useTranslations('Settings.invite');
   const tRoles = useTranslations('Settings.roles');
+  const tPositions = useTranslations('Settings.positions');
   const { account } = useAuth();
   const [role, setRole] = useState<InviteRole>('agent');
+  // Sales position the invite carries (spec 008, FR-022). 'none' is
+  // the Select sentinel for "no position" (null on the wire).
+  const [position, setPosition] = useState<string>('none');
   const [expiry, setExpiry] = useState<string>('7');
   const [label, setLabel] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +89,7 @@ export function InviteMemberDialog({
 
   function reset() {
     setRole('agent');
+    setPosition('none');
     setExpiry('7');
     setLabel('');
     setResult(null);
@@ -110,6 +115,7 @@ export function InviteMemberDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role,
+          position: position === 'none' ? undefined : position,
           expiresInDays: Number(expiry),
           label: trimmedLabel || undefined,
         }),
@@ -285,6 +291,31 @@ export function InviteMemberDialog({
                 <p className="text-xs text-muted-foreground">
                   {tRoles(`${role}Hint` as 'adminHint' | 'agentHint' | 'viewerHint')}
                 </p>
+              </div>
+
+              {/* Sales position (spec 008, FR-022) — optional business
+                  label copied onto the membership when the invite is
+                  accepted. Orthogonal to the permission role above. */}
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">
+                  {tPositions('label')}
+                </Label>
+                <Select
+                  value={position}
+                  onValueChange={(v) => v && setPosition(v)}
+                >
+                  <SelectTrigger className="w-full bg-muted border-border text-foreground">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{tPositions('none')}</SelectItem>
+                    <SelectItem value="sdr">{tPositions('sdr')}</SelectItem>
+                    <SelectItem value="closer">{tPositions('closer')}</SelectItem>
+                    <SelectItem value="vendedor">
+                      {tPositions('vendedor')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
