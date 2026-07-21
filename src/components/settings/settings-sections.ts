@@ -61,7 +61,7 @@ export const SECTION_META: Record<SettingsSection, SectionMeta> = {
   deals: { id: 'deals', label: 'Deals & currency', icon: Coins, group: 'workspace' },
   // Origens de captação de lead (spec 009): formulários da Meta e
   // filiais do site que pertencem a esta empresa.
-  leads: { id: 'leads', label: 'Leads', icon: Magnet, group: 'workspace' },
+  leads: { id: 'leads', label: 'Lead capture', icon: Magnet, group: 'workspace' },
   members: { id: 'members', label: 'Team members', icon: UsersRound, group: 'workspace' },
   api: { id: 'api', label: 'API keys', icon: KeyRound, group: 'workspace' },
 };

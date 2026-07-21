@@ -1454,10 +1454,13 @@
       "ownerHint": "Controle total sobre conta e faturamento"
     },
     "leads": {
-      "title": "Origens de leads",
-      "description": "Declare o que é desta empresa: os formulários de anúncio da Meta e as filiais que o site envia. Um lead que chega por uma origem cadastrada vira negócio no funil desta empresa, automaticamente.",
+      "title": "De onde vêm os leads desta empresa",
+      "description": "Quando um anúncio gera um lead, a Meta avisa só o ID do formulário — não diz de qual empresa é. Aqui você declara \"este formulário é meu\", e o lead vira negócio no funil desta empresa. É a mesma ideia do número de WhatsApp: o número é da empresa, então a conversa cai nela.",
+      "howItWorks": "O site funciona igual: ele envia o nome da filial, e você cadastra qual filial é desta empresa.",
       "empty": "Nenhuma origem cadastrada ainda.",
-      "emptyHint": "Sem origem cadastrada, os leads chegam mas ficam sem empresa — visíveis, porém parados.",
+      "emptyHint": "Sem cadastro, os leads continuam chegando — mas ficam parados, sem empresa, porque o sistema não sabe de quem são.",
+      "rowExplainFormId": "Leads deste formulário viram negócios nesta empresa",
+      "rowExplainFilial": "Leads do site com esta filial viram negócios nesta empresa",
       "add": "Adicionar origem",
       "kind": "Tipo",
       "kindFormId": "Formulário da Meta",
@@ -1596,6 +1599,7 @@
       "quick-replies": "Respostas rápidas",
       "fields": "Campos e etiquetas",
       "deals": "Negócios e moeda",
+      "leads": "Captação de leads",
       "members": "Membros da equipe",
       "api": "Chaves de API"
     },

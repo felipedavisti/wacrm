@@ -203,7 +203,7 @@ export function LeadsSettings() {
     <section className="animate-in fade-in-50 space-y-6 duration-200">
       <SettingsPanelHead
         title={t('title')}
-        description={t('description')}
+        description={`${t('description')} ${t('howItWorks')}`}
         action={
           <RequireRole min="admin">
             <Button onClick={() => setAdding(true)} disabled={adding}>
@@ -338,11 +338,15 @@ export function LeadsSettings() {
                     <p className="truncate font-mono text-sm text-foreground">
                       {s.value}
                     </p>
-                    {s.label && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {s.label}
-                      </p>
-                    )}
+                    {/* Diz, em cada linha, o que aquele cadastro
+                        significa na prática — o id sozinho não
+                        comunica nada. */}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {s.label ? `${s.label} · ` : ''}
+                      {s.kind === 'form_id'
+                        ? t('rowExplainFormId')
+                        : t('rowExplainFilial')}
+                    </p>
                   </div>
                   {canManageMembers && (
                     <Button

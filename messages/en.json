@@ -1454,10 +1454,13 @@
       "ownerHint": "Full control over account and billing"
     },
     "leads": {
-      "title": "Lead sources",
-      "description": "Declare what belongs to this company: the Meta ad forms and the branches your website sends. A lead arriving through a registered source becomes a deal in this company's pipeline, automatically.",
+      "title": "Where this company's leads come from",
+      "description": "When an ad generates a lead, Meta only tells us the form ID — it doesn't say which company it belongs to. Here you declare \"this form is mine\", and the lead becomes a deal in this company's pipeline. Same idea as the WhatsApp number: the number belongs to the company, so the conversation lands there.",
+      "howItWorks": "The website works the same way: it sends the branch name, and you register which branch belongs to this company.",
       "empty": "No sources registered yet.",
-      "emptyHint": "With no source registered, leads still arrive but stay without a company — visible, yet stuck.",
+      "emptyHint": "Without registering, leads keep arriving — but they sit with no company, because the system doesn't know whose they are.",
+      "rowExplainFormId": "Leads from this form become deals in this company",
+      "rowExplainFilial": "Website leads with this branch become deals in this company",
       "add": "Add source",
       "kind": "Type",
       "kindFormId": "Meta form",
@@ -1596,6 +1599,7 @@
       "quick-replies": "Quick replies",
       "fields": "Fields & tags",
       "deals": "Deals & currency",
+      "leads": "Lead capture",
       "members": "Team members",
       "api": "API keys"
     },
