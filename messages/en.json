@@ -1769,5 +1769,16 @@
     "retry": "Retry",
     "toastMarkReadFailed": "Failed to mark notification as read",
     "toastMarkAllFailed": "Failed to mark all as read"
+  },
+  "AccountSwitcher": {
+    "label": "Company",
+    "switchTo": "Switch company",
+    "current": "Current company",
+    "toastSwitchFailed": "Failed to switch company"
+  },
+  "NoAccount": {
+    "title": "You're not part of a company yet",
+    "description": "Ask your company administrator for an invitation, or contact the IT team to get access.",
+    "signOut": "Sign out"
   }
 }

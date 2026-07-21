@@ -1,4 +1,4 @@
-import type { AccountRole } from "@/lib/auth/roles";
+import type { AccountRole, SalesPosition } from "@/lib/auth/roles";
 import type { InteractiveMessagePayload } from "@/lib/whatsapp/interactive";
 
 export type {
@@ -33,18 +33,22 @@ export interface Profile {
    */
   beta_features?: string[];
   /**
-   * Account this profile is a member of. Added by
-   * `017_account_sharing.sql`; NOT NULL in the DB post-backfill.
-   * Optional on the type only because older serialised payloads
-   * (cached client state, test fixtures) may not have it yet.
+   * The user's ACTIVE account (spec 008 multi-conta). Originally the
+   * single account of the profile (017); since 508_account_members
+   * this is the mutable "currently selected company" pointer —
+   * membership itself lives in `account_members` (N-to-N). NULLABLE
+   * in the DB: NULL = "no company" state (new signup without invite,
+   * or removed from every account).
    */
-  account_id?: string;
+  account_id?: string | null;
   /**
-   * Caller's role within their account. Source of truth for every
-   * role-gated UI / API check — call `hasMinRole` from
-   * `@/lib/auth/roles` rather than comparing this string directly.
+   * Caller's role within the ACTIVE account — denormalised from
+   * `account_members` and re-synced on every switch (spec 008).
+   * Source of truth for role-gated UI / API checks — call
+   * `hasMinRole` from `@/lib/auth/roles` rather than comparing
+   * this string directly. NULL when `account_id` is NULL.
    */
-  account_role?: AccountRole;
+  account_role?: AccountRole | null;
   created_at: string;
 }
 
@@ -62,6 +66,22 @@ export interface Account {
 }
 
 /**
+ * One membership row from `account_members` (508, spec 008): the
+ * N-to-N link between a user and an account, carrying the
+ * per-account permission role and optional sales position. This is
+ * the source of truth for "which companies can this user see" —
+ * `profiles.account_id` only points at the currently ACTIVE one.
+ */
+export interface AccountMembership {
+  account_id: string;
+  user_id: string;
+  role: AccountRole;
+  position: SalesPosition | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Hydrated member row for the Settings → Members tab. Combines
  * the profile and its account_role for a single member of the
  * caller's account. Sensitive fields (email) are populated only
@@ -74,6 +94,8 @@ export interface AccountMember {
   email: string | null;
   avatar_url: string | null;
   role: AccountRole;
+  /** Sales position within this account (spec 008, FR-022). */
+  position?: SalesPosition | null;
   joined_at: string;
 }
 
@@ -88,6 +110,8 @@ export interface AccountInvitation {
   account_id: string;
   /** Roles offered via invite — owner is never offered. */
   role: Exclude<AccountRole, "owner">;
+  /** Sales position the invite carries (spec 008, FR-006/FR-022). */
+  position?: SalesPosition | null;
   created_by_user_id: string | null;
   label: string | null;
   created_at: string;

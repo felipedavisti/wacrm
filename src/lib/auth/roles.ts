@@ -17,6 +17,15 @@
 
 export type AccountRole = "owner" | "admin" | "agent" | "viewer";
 
+/**
+ * Sales position of a member within ONE account (spec 008, FR-022).
+ * Orthogonal to `AccountRole`: the position is a business label
+ * (SDR/closer/vendedor) while the role is the permission level.
+ * For now every position maps to "agent"-level permissions; the
+ * fine-grained permission matrix is a later feature.
+ */
+export type SalesPosition = "sdr" | "closer" | "vendedor";
+
 /** Ordered list of every valid role, lowest privilege first. */
 export const ACCOUNT_ROLES: readonly AccountRole[] = [
   "viewer",

@@ -18,8 +18,8 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **Purpose**: preparar terreno; sem mudança de comportamento.
 
-- [ ] T001 Confirmar baseline verde (suíte atual + `tsc`/lint) e a última migration aplicada no dev (007 = `507`), fixando `508_` como próxima faixa.
-- [ ] T002 [P] Criar os namespaces de i18n para os rótulos novos (seletor de empresa, "sem empresa", cargos, gestão de acesso) em `messages/pt-BR.json` e `messages/en.json` (chaves vazias/placeholder; conteúdo nas fases das US).
+- [x] T001 Confirmar baseline verde (suíte atual + `tsc`/lint) e a última migration aplicada no dev (007 = `507`), fixando `508_` como próxima faixa. **Nota:** baseline = tsc ✅, 714/719 testes ✅; 5 falhas pré-existentes de **locale do ambiente** (currency + weekday em máquina pt-BR, `Intl` divergindo de expectativa en-US) — sem relação com a 008.
+- [x] T002 [P] Namespaces i18n `AccountSwitcher` + `NoAccount` criados em `messages/pt-BR.json` e `messages/en.json` (chaves núcleo; mais chaves nas fases das US). Paridade/ICU ✅.
 
 ---
 
@@ -29,12 +29,12 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **⚠️ CRITICAL**: nenhuma US começa antes desta fase fechar.
 
-- [ ] T003 Migration `508_account_members.sql`: cria `account_members(account_id, user_id, role, position, created_at, updated_at)` PK`(account_id,user_id)` + índices `(user_id)` e `(account_id)`; habilita RLS (SELECT: próprio vínculo OU `is_account_member(account_id,'admin')`; escrita: `is_account_member(account_id,'admin')`); **backfill** de `profiles` (1 linha por profile com `role=account_role`); dropa `idx_accounts_one_per_owner`; torna `profiles.account_id`/`account_role` NULLABLE; adiciona `account_invitations.position TEXT NULL`. Comentar as divergências do upstream. (FR-001..004, FR-009)
-- [ ] T004 Migration `509_is_account_member_multi.sql`: reescreve `is_account_member(target, min_role)` para testar existência em `account_members` (rank owner/admin/agent/viewer preservado), SECURITY DEFINER. (FR-003, FR-015)
-- [ ] T005 Migration `511_handle_new_user_no_account.sql`: reescreve `handle_new_user` para criar **só o profile** (`account_id = NULL`, sem `account_members`); adiciona `provision_company(nome, primeiro_user)` (SECURITY DEFINER, uso TI) que cria account + `account_members(owner)` + define ativa. (FR-019..021)
-- [ ] T006 [P] Tipos TS de `account_members` (+ `position`) e ajuste dos campos nullable de `profiles` em `src/types/index.ts`.
-- [ ] T007 Ajustar `getCurrentAccount()` em `src/lib/auth/account.ts`: quando `profiles.account_id` for NULL, retornar um sinal de **"sem empresa"** (não estourar erro cru) para a UI poder rotear à tela neutra; rotas de API seguem 403 quando exigem conta. (FR-023)
-- [ ] T008 [P] Teste de integração da migration `508_` (backfill idempotente; `profiles.account_id` preservado como ativa; owner vira `account_members(owner)`). (SC-002)
+- [x] T003 Migration `508_account_members.sql`: tabela + RLS + backfill + drop do índice de owner + profiles NULLABLE + `account_invitations.position`. **Extra crítico:** FK `profiles.account_id` mudada de `ON DELETE CASCADE` → **`SET NULL`** (no multi-conta, excluir uma empresa não pode apagar o profile de quem está em outras). Backfill com verificação em DO block (aborta se incompleto) + cinto do owner via `accounts.owner_user_id`. (FR-001..004, FR-009)
+- [x] T004 Migration `509_is_account_member_multi.sql`: `is_account_member` lê `account_members` (mesma assinatura/rank/grants; SECURITY DEFINER sem recursão). (FR-003, FR-015)
+- [x] T005 Migration `511_handle_new_user_no_account.sql`: signup cria só o profile; `provision_company(nome, primeiro_user)` com grant **apenas service_role** (TI). (FR-019..021)
+- [x] T006 [P] Tipos: `SalesPosition` (roles.ts), `AccountMembership`, `Profile.account_id/role` nullable+ressignificados, `AccountMember.position`, `AccountInvitation.position`. Typecheck ✅.
+- [x] T007 `getCurrentAccount()`: `NoAccountError` (subclasse de ForbiddenError — rotas seguem 403) + **self-heal**: ponteiro NULL com vínculos existentes → ativa o vínculo mais antigo (cobre empresa ativa excluída/revogada, FR-008/FR-023). Caminho comum sem query extra.
+- [x] T008 [P] Testes: 8/8 em `account.test.ts` (NoAccountError sem vínculos; self-heal ativa vínculo mais antigo e grava no profile; profile ausente = Forbidden puro; regressão #294 mantida). Backfill validado por assertions dentro da própria migration 508 (DO block); validação em banco real acontece ao aplicar no dev (checkpoint).
 
 **Checkpoint**: esquema multi-conta no lugar; RLS lê `account_members`; signup não cria mais conta.
 

@@ -1769,5 +1769,16 @@
     "retry": "Tentar novamente",
     "toastMarkReadFailed": "Falha ao marcar a notificação como lida",
     "toastMarkAllFailed": "Falha ao marcar todas como lidas"
+  },
+  "AccountSwitcher": {
+    "label": "Empresa",
+    "switchTo": "Trocar de empresa",
+    "current": "Empresa atual",
+    "toastSwitchFailed": "Falha ao trocar de empresa"
+  },
+  "NoAccount": {
+    "title": "Você ainda não está em uma empresa",
+    "description": "Peça um convite ao administrador da sua empresa ou procure a equipe de TI para liberar o seu acesso.",
+    "signOut": "Sair"
   }
 }

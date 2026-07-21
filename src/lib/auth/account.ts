@@ -55,6 +55,21 @@ export class ForbiddenError extends Error {
 }
 
 /**
+ * The authenticated user has a profile but belongs to NO account —
+ * the "sem empresa" state (spec 008, FR-023): a fresh signup without
+ * an invite, or a user removed from every company. Subclasses
+ * `ForbiddenError` so every existing API route keeps returning 403
+ * unchanged; the UI layer catches this specific class to route to
+ * the neutral "no company" screen instead of an error page.
+ */
+export class NoAccountError extends ForbiddenError {
+  constructor(message = "User does not belong to any account") {
+    super(message);
+    this.name = "NoAccountError";
+  }
+}
+
+/**
  * Convert one of the typed errors above (or anything else) into a
  * `NextResponse`. Routes can do:
  *
@@ -124,11 +139,46 @@ export async function getCurrentAccount(): Promise<AccountContext> {
     console.error("[getCurrentAccount] profile fetch error:", error);
     throw new ForbiddenError("Could not load account context");
   }
-  if (!data || !data.account_id || !data.account_role) {
-    // Pre-migration profile, or a manual insert that skipped the
-    // signup trigger. The user is authenticated but the app has
+  if (!data) {
+    // No profile row at all — anomalous post-511 (the signup trigger
+    // always creates one). The user is authenticated but the app has
     // no way to scope their queries — treat as forbidden.
     throw new ForbiddenError("Profile is not linked to an account");
+  }
+  if (!data.account_id || !data.account_role) {
+    // Active-account pointer is NULL (spec 008): fresh signup without
+    // an invite, or the active company was deleted (FK SET NULL) /
+    // revoked. Before declaring "no company", try to self-heal by
+    // activating the user's earliest remaining membership — this is
+    // what "falls back to another company they belong to" (FR-008)
+    // means in practice. Only runs on this cold path; the common
+    // request path costs no extra query.
+    const { data: fallback } = await supabase
+      .from("account_members")
+      .select("account_id, role")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (!fallback) {
+      throw new NoAccountError();
+    }
+
+    const { error: healErr } = await supabase
+      .from("profiles")
+      .update({
+        account_id: fallback.account_id,
+        account_role: fallback.role,
+      })
+      .eq("user_id", user.id);
+    if (healErr) {
+      // Healing failed (e.g. transient) — still serve this request
+      // with the resolved membership; the pointer heals next time.
+      console.error("[getCurrentAccount] active-account heal failed:", healErr);
+    }
+    data.account_id = fallback.account_id;
+    data.account_role = fallback.role;
   }
   if (!isAccountRole(data.account_role)) {
     // The DB enum should make this impossible, but a future
