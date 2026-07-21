@@ -30,8 +30,10 @@ function makeClient(opts: {
   user: { id: string } | null;
   userErr?: unknown;
   byTable: Record<string, QueuedResult | QueuedResult[]>;
+  rpcResult?: QueuedResult;
 }) {
   const calls: BuilderCall[] = [];
+  const rpcCalls: Array<{ fn: string; args: unknown }> = [];
 
   const nextResult = (table: string): QueuedResult => {
     const queued = opts.byTable[table];
@@ -79,6 +81,7 @@ function makeClient(opts: {
 
   return {
     calls,
+    rpcCalls,
     client: {
       auth: {
         getUser: () =>
@@ -88,6 +91,10 @@ function makeClient(opts: {
           }),
       },
       from,
+      rpc: (fn: string, args: unknown) => {
+        rpcCalls.push({ fn, args });
+        return Promise.resolve(opts.rpcResult ?? { data: null, error: null });
+      },
     },
   };
 }
@@ -196,21 +203,18 @@ describe("getCurrentAccount", () => {
   });
 
   it("self-heals a NULL pointer by activating the earliest membership", async () => {
-    const { client, calls } = makeClient({
+    const { client, rpcCalls } = makeClient({
       user: { id: "user-1" },
       byTable: {
-        profiles: [
-          // 1st: the read — pointer is NULL (active company deleted/revoked).
-          { data: { account_id: null, account_role: null }, error: null },
-          // 2nd: the heal update.
-          { data: null, error: null },
-        ],
+        // Pointer is NULL (active company deleted/revoked).
+        profiles: { data: { account_id: null, account_role: null }, error: null },
         account_members: {
           data: { account_id: "acct-2", role: "agent" },
           error: null,
         },
         accounts: { data: { id: "acct-2", name: "Filial 2" }, error: null },
       },
+      rpcResult: { data: "acct-2", error: null },
     });
     createClient.mockReturnValue(client);
 
@@ -221,10 +225,11 @@ describe("getCurrentAccount", () => {
       role: "agent",
       account: { id: "acct-2", name: "Filial 2" },
     });
-    // The heal wrote the fallback membership back onto the profile.
-    const heal = calls.find((c) => c.table === "profiles" && c.update);
-    expect(heal?.update).toEqual({ account_id: "acct-2", account_role: "agent" });
-    expect(heal?.eqArgs).toEqual([["user_id", "user-1"]]);
+    // The heal goes through the sanctioned RPC — never a direct
+    // profiles UPDATE (the 508 guard trigger forbids it).
+    expect(rpcCalls).toEqual([
+      { fn: "set_active_account", args: { p_account_id: "acct-2" } },
+    ]);
   });
 
   it("rejects a missing profile row as a plain ForbiddenError", async () => {

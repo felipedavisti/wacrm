@@ -165,13 +165,13 @@ export async function getCurrentAccount(): Promise<AccountContext> {
       throw new NoAccountError();
     }
 
-    const { error: healErr } = await supabase
-      .from("profiles")
-      .update({
-        account_id: fallback.account_id,
-        account_role: fallback.role,
-      })
-      .eq("user_id", user.id);
+    // Heal through the set_active_account RPC — the ONLY sanctioned
+    // writer of the active-account pointer. A direct profiles UPDATE
+    // would be rejected by the guard trigger from migration 508
+    // (account_id/account_role are client-immutable by design).
+    const { error: healErr } = await supabase.rpc("set_active_account", {
+      p_account_id: fallback.account_id,
+    });
     if (healErr) {
       // Healing failed (e.g. transient) — still serve this request
       // with the resolved membership; the pointer heals next time.

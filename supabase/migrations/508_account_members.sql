@@ -55,18 +55,13 @@ DROP POLICY IF EXISTS account_members_select ON account_members;
 CREATE POLICY account_members_select ON account_members FOR SELECT
   USING (is_account_member(account_id));
 
-DROP POLICY IF EXISTS account_members_insert ON account_members;
-CREATE POLICY account_members_insert ON account_members FOR INSERT
-  WITH CHECK (is_account_member(account_id, 'admin'));
-
-DROP POLICY IF EXISTS account_members_update ON account_members;
-CREATE POLICY account_members_update ON account_members FOR UPDATE
-  USING (is_account_member(account_id, 'admin'))
-  WITH CHECK (is_account_member(account_id, 'admin'));
-
-DROP POLICY IF EXISTS account_members_delete ON account_members;
-CREATE POLICY account_members_delete ON account_members FOR DELETE
-  USING (is_account_member(account_id, 'admin'));
+-- ESCRITA: NENHUMA policy — negada por padrão no cliente. Toda
+-- mutação de pertença passa pelas RPCs SECURITY DEFINER (510), que
+-- carregam as guardas (último owner, transferência 1-por-1, papel do
+-- chamador). Uma policy de escrita "admin+" aqui permitiria, por
+-- exemplo, um admin se autopromover a owner com um UPDATE direto via
+-- PostgREST, contornando as guardas — achado da revisão de segurança
+-- da 008 (Princípio II: fail-closed).
 
 -- 2) Backfill (FR-004): todo usuário atual tem exatamente 1 conta —
 --    o vínculo equivalente nasce daqui, com o mesmo papel. Idempotente.
@@ -123,6 +118,36 @@ ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_account_id_fkey;
 ALTER TABLE profiles
   ADD CONSTRAINT profiles_account_id_fkey
     FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE SET NULL;
+
+-- 4c) SEGURANÇA (Princípio II): a policy `profiles_update` (017)
+--     permite ao usuário editar a PRÓPRIA linha — inclusive
+--     `account_role`/`account_id`. Na 017 isso era escalação real
+--     (o is_account_member antigo LIA profiles.account_role); no
+--     modelo novo o RLS é seguro (lê account_members), mas o denorm
+--     forjado ainda enganaria as checagens de camada de app
+--     (requireRole). Este trigger fecha o buraco: os dois campos só
+--     mudam por caminhos SECURITY DEFINER (as RPCs da 510, que rodam
+--     como postgres) — nunca por um UPDATE direto do cliente.
+CREATE OR REPLACE FUNCTION public.guard_profile_account_fields()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF (NEW.account_id IS DISTINCT FROM OLD.account_id
+      OR NEW.account_role IS DISTINCT FROM OLD.account_role)
+     AND current_user NOT IN ('postgres', 'service_role', 'supabase_admin') THEN
+    RAISE EXCEPTION
+      'account_id/account_role can only change via membership RPCs'
+      USING ERRCODE = '42501';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS guard_profile_account_fields ON profiles;
+CREATE TRIGGER guard_profile_account_fields
+  BEFORE UPDATE ON profiles
+  FOR EACH ROW EXECUTE FUNCTION public.guard_profile_account_fields();
 
 -- 5) O convite pode carregar o cargo de vendas (FR-006/FR-022).
 ALTER TABLE account_invitations

@@ -78,8 +78,19 @@ deliberadas, comentadas em cada migration e resumidas aqui:
   provisionadas pela TI (`provision_company`, grant só service_role).
 
 Arquivos de app com divergência: `src/lib/auth/account.ts` (NoAccountError +
-self-heal), `members/route.ts` (roster via account_members), `dashboard-shell.tsx`
-(gate "sem empresa"), `join/[token]/page.tsx` (copy aditivo).
+self-heal via RPC), `members/route.ts` (roster via account_members),
+`dashboard-shell.tsx` (gate "sem empresa"), `join/[token]/page.tsx` (copy aditivo).
+
+**Achados da revisão de segurança da 008** (corrigidos na própria 508):
+
+1. `account_members` SEM policies de escrita (deny-by-default) — uma policy
+   "admin+" permitiria autopromoção a owner por UPDATE direto via PostgREST,
+   contornando as guardas das RPCs.
+2. Trigger `guard_profile_account_fields`: `profiles.account_id`/`account_role`
+   só mudam por caminhos SECURITY DEFINER. Fecha uma **escalação pré-existente
+   da 017** (o `is_account_member` antigo lia `profiles.account_role`, que o
+   próprio usuário podia editar → owner instantâneo). No modelo novo o RLS já
+   era seguro; o trigger protege as checagens de camada de app (requireRole).
 
 ## Sequenciamento recomendado das specs
 
