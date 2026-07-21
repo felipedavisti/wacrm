@@ -123,7 +123,7 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 - [x] T032 Divergências 508–511 documentadas em `docs/upstream-sync.md` (seção nova) + comentários em cada migration; provisionamento TI já no `quickstart.md`. (Princípio V)
 - [x] T033 **Revisão de segurança** (Princípio II) feita — **2 achados ALTOS, corrigidos na 508**: (1) policies de escrita de `account_members` permitiriam autopromoção a owner via UPDATE direto → escrita agora é deny-by-default (só RPCs SECURITY DEFINER); (2) `profiles.account_id/account_role` eram editáveis pelo próprio usuário (escalação **pré-existente da 017**: o is_account_member antigo lia esse campo!) → trigger `guard_profile_account_fields` bloqueia mudança fora de SECURITY DEFINER; self-heal do `getCurrentAccount` migrado para a RPC. RPCs/rotas/RLS restantes revisadas sem achados. Registrado em `docs/upstream-sync.md`.
 - [x] T034 [P] Portão de i18n: paridade pt-BR/en + ICU ✅ (roda na suíte; 4/4).
-- [ ] T035 Rodar a validação do `quickstart.md` (5 cenários, **após aplicar migrations no dev**) e `/code-review` da diff da 008.
+- [x] T035 Validação no dev feita pelo usuário (migrations 508–512 aplicadas; backfill 4/4; provision da 2ª empresa; troca + **isolamento confirmado** após o hotfix 512). Code review manual da diff completa: sem bugs remanescentes; build+typecheck+suíte ✅. **Hotfix 512** (achado no teste): RLS de domínio exige conta ATIVA — corrigiu a mistura de empresas nas queries client-side. (`/code-review high` independente fica opcional ao usuário.)
 
 ---
 
