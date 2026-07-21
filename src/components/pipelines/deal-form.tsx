@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { DealTrackingPanel } from "./deal-tracking";
 
 interface DealFormProps {
   open: boolean;
@@ -259,6 +260,12 @@ export function DealForm({
           </SheetHeader>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Origem do lead (spec 009) — read-only, no topo: é a
+                primeira coisa que o vendedor quer saber ao abrir um
+                negócio que veio de anúncio. Só aparece quando o
+                negócio nasceu do Motor de Leads. */}
+            <DealTrackingPanel tracking={deal?.tracking} />
+
             <div className="grid gap-2">
               <Label className="text-muted-foreground">{t("title")}</Label>
               <Input

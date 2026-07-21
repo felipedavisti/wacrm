@@ -110,6 +110,7 @@ revisadas (Princípio II) · i18n pt-BR/en.
 
 ## Phase 9: Polish & Cross-Cutting
 
+- [x] T033 **Exibir a origem do lead no funil** — tarefa nova, aberta a partir de uma lacuna achada no teste: o `tracking` existia no banco mas **não tinha UI**, então o dado não servia a ninguém. `deal-tracking.tsx`: `TrackingBadge` (selo de origem no card do funil; some em negócio criado à mão) + `DealTrackingPanel` (bloco "Origem do lead" no topo do detalhe). Decisão de leitura: **nomes na frente** (Campanha / Conjunto de anúncios / Criativo / Formulário / Produto) e **IDs técnicos recolhidos** num toggle — quem trabalha o funil pensa em "qual anúncio", não em `120249037631560167`. i18n pt-BR/en ✅. (FR-005)
 - [ ] T027 [P] Rótulos i18n do motor completos (pt-BR/en) + teste de paridade/ICU.
 - [ ] T028 **Revisão de segurança** (Princípio II): `/security-review` — ingestão fail-closed, worker/entrega interna carimbando o account certo, segredos de destino externo, RLS das tabelas novas + `routing_map`.
 - [ ] T029 Documentar divergências do upstream (tabelas/rotas novas, `deals.tracking`) nas migrations 512–515 e no runbook de sync. (Princípio V)

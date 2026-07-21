@@ -518,6 +518,25 @@
       "won": "Ganho",
       "lost": "Perdido"
     },
+    "tracking": {
+      "title": "Origem do lead",
+      "sourceSite": "Site",
+      "sourceMetaForm": "Meta Ads",
+      "sourceMetaCtwa": "WhatsApp (anúncio)",
+      "campaign": "Campanha",
+      "adset": "Conjunto de anúncios",
+      "ad": "Criativo",
+      "form": "Formulário",
+      "product": "Produto",
+      "medium": "Meio",
+      "technicalIds": "IDs técnicos",
+      "campaignId": "ID da campanha",
+      "adsetId": "ID do conjunto",
+      "adId": "ID do criativo",
+      "formId": "ID do formulário",
+      "leadId": "ID do lead (Meta)",
+      "manual": "Negócio criado manualmente — sem origem de campanha."
+    },
     "form": {
       "editDeal": "Editar negócio",
       "newDeal": "Novo negócio",

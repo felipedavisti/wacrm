@@ -413,11 +413,43 @@ export interface Deal {
   notes?: string;
   expected_close_date?: string;
   status?: DealStatus;
+  /**
+   * Acquisition tracking (spec 009, migration 516). Filled by the
+   * Motor de Leads when the deal is born from an ingested lead;
+   * `{}` for deals created by hand.
+   */
+  tracking?: DealTracking;
   created_at: string;
   updated_at?: string;
   contact?: Contact;
   stage?: PipelineStage;
   assignee?: Profile;
+}
+
+/**
+ * "Where did this deal come from" — the fields that used to live in
+ * Odoo as `ink_new_*`. All optional: an origin without paid media
+ * (the site form) only fills source/medium/product.
+ */
+export interface DealTracking {
+  source?: 'site' | 'meta_form' | 'meta_ctwa';
+  medium?: string | null;
+  product?: string | null;
+  /** Campaign name — the human-readable one (utm.campaign). */
+  campaign_name?: string;
+  campaign_id?: string;
+  /** Ad set ("conjunto de anúncios"). */
+  adset_name?: string;
+  adset_id?: string;
+  /** Creative ("criativo"). */
+  ad_name?: string;
+  ad_id?: string;
+  /** Meta lead form. */
+  form_name?: string;
+  form_id?: string;
+  leadgen_id?: string;
+  meta_account_id?: string;
+  platform?: string;
 }
 
 export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';

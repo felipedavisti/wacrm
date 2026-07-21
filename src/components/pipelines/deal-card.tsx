@@ -4,6 +4,7 @@ import type { Deal, PipelineStage } from "@/types";
 import { Calendar, Check, X } from "lucide-react";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
+import { TrackingBadge } from "./deal-tracking";
 
 interface DealCardProps {
   deal: Deal;
@@ -78,6 +79,8 @@ export function DealCard({ deal, stage, onEdit, isOverlay }: DealCardProps) {
           {initials(deal.contact?.name, deal.contact?.phone)}
         </span>
         <span className="truncate text-xs text-muted-foreground">{contactLabel}</span>
+        {/* Origem do lead (spec 009) — some em negócio criado à mão. */}
+        <TrackingBadge tracking={deal.tracking} />
       </div>
 
       <div className="mt-2 flex items-center justify-between">
