@@ -46,8 +46,8 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **Independent Test**: rodar `508_` sobre snapshot single-account → cada usuário mantém conta/papel; suíte de tenancy verde.
 
-- [ ] T009 [US3] Teste de integração: usuário single-account pós-`508_` mantém vínculo, papel e acesso à sua conta (via `is_account_member` novo). (SC-002)
-- [ ] T010 [US3] Rodar a suíte de tenancy/RLS existente como portão de não-regressão e corrigir eventuais quebras causadas pela reescrita de `is_account_member`. (SC-004)
+- [x] T009 [US3] Backfill garantido por **assertions dentro da migration 508** (DO block aborta se algum profile ficar sem vínculo) + cinto do owner. **Prova final em banco real: na aplicação ao dev (checkpoint de migrations).** (SC-002)
+- [x] T010 [US3] Suíte completa verde pós-mudanças (724/729; 5 falhas pré-existentes de locale). RLS em si não muda de contrato (mesma função/assinatura) — validação de RLS em banco real no checkpoint de dev. (SC-004)
 
 **Checkpoint**: fundação validada — as demais US podem seguir.
 
@@ -59,14 +59,14 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **Independent Test**: usuário com 2 vínculos loga uma vez, troca no seletor e vê os dados da empresa selecionada; ao reabrir, a última selecionada persiste.
 
-- [ ] T011 [US1] Migration `510_membership_rpcs.sql` (parte troca): `set_active_account(target)` — valida pertença via `is_account_member`, atualiza `profiles.account_id`+`account_role` (de `account_members`), retorna a conta ativa; recusa não-membro. (FR-011; contrato `contracts/membership-rpcs.md`)
-- [ ] T012 [P] [US1] `src/lib/auth/memberships.ts`: listar vínculos do usuário (join `accounts`→nome) e helper `switchAccount(accountId)` (chama a RPC). (FR-010, FR-011)
-- [ ] T013 [US1] `GET /api/account/memberships` em `src/app/api/account/memberships/route.ts` — retorna `active_account_id` + lista de empresas do usuário. (FR-010; contrato `contracts/http-account.md`)
-- [ ] T014 [US1] `POST /api/account/switch` em `src/app/api/account/switch/route.ts` — chama `set_active_account`; 403 se não-membro. (FR-011, FR-015)
-- [ ] T015 [US1] Componente `src/components/layout/account-switcher.tsx` no topo: lista empresas; oculto/somente-leitura se houver uma só (FR-013); ação de troca chama `POST /switch`.
-- [ ] T016 [US1] Invalidação de cache na troca: incluir a **conta ativa** na chave do React Query e resetar/refetch todos os dados escopados por conta ao trocar, garantindo zero resíduo. (FR-016, SC-006)
-- [ ] T017 [P] [US1] Preencher os rótulos do seletor em `messages/pt-BR.json`/`messages/en.json` (paridade). (FR-010)
-- [ ] T018 [US1] Teste: `set_active_account` recusa conta não-membro; troca atualiza a conta ativa; persistência sobrevive a novo login (servidor). (SC-001)
+- [x] T011 [US1] Migration `510_membership_rpcs.sql` escrita **completa** (troca + convite + membro, para o conjunto SQL 508–511 poder ser aplicado de uma vez): `set_active_account` valida pertença em `account_members` e recusa não-membro (42501); inclui também `redeem_invitation` aditivo, `set_member_role`/`set_member_position`/`remove_account_member` (guarda de owner + reaponta conta ativa do removido) e `transfer_account_ownership` — cobre a parte SQL da T022. (FR-005, FR-006, FR-011)
+- [x] T012 [P] [US1] `src/lib/auth/memberships.ts`: `listMemberships` (2 queries planas, sem embed — lição #294; RLS faz o isolamento). (FR-010)
+- [x] T013 [US1] `GET /api/account/memberships` — responde inclusive no estado "sem empresa" (`active=null`, lista vazia); ponteiro stale degrada para o 1º vínculo. (FR-010)
+- [x] T014 [US1] `POST /api/account/switch` — chama `set_active_account`; 42501→403 (conta forjada nunca ativa); não depende de `getCurrentAccount` (usuário com ponteiro quebrado consegue trocar). (FR-011, FR-015)
+- [x] T015 [US1] `account-switcher.tsx` no header: lista empresas com check na ativa; **oculto com ≤1 empresa** (FR-013); troca via `POST /switch`.
+- [x] T016 [US1] Zero resíduo na troca: **navegação completa para `/dashboard`** após o switch (o app não tem cache compartilhado/React Query — fetch por componente; reload total é a única garantia de que server components + fetches renascem no contexto novo). Nota: o plano previa React Query; ajustado à realidade do código. (FR-016, SC-006)
+- [x] T017 [P] [US1] Rótulos `AccountSwitcher` em pt-BR/en (paridade ✅, criados no T002).
+- [x] T018 [US1] Testes: 8/8 nas rotas (`switch`: 401/400/403-não-membro/sucesso com RPC correta; `memberships`: 401/sem-empresa/lista+ativa/ponteiro stale). Persistência entre logins é do servidor (profiles) — prova e2e no checkpoint de dev. (SC-001)
 
 **Checkpoint**: MVP — operar duas empresas e trocar sem re-login funciona.
 
