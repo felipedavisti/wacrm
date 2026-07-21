@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { NoAccountScreen } from "@/components/layout/no-account";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 
 // Auth-gated dashboard shell. Extracted from the layout so the layout
@@ -12,13 +13,55 @@ import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 // client components can't export Next's metadata object.
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, profile, profileLoading } = useAuth();
   const router = useRouter();
 
   // Sidebar drawer state — only used on mobile. On lg+ the sidebar is
   // always visible and this stays at `false` (ignored by the component).
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+  // "Sem empresa" gate (spec 008, FR-023). A NULL active-account
+  // pointer has two very different meanings:
+  //   - the user has memberships but the pointer broke (active
+  //     company deleted/revoked) → self-heal by switching to one
+  //     and reloading;
+  //   - the user belongs to NO company → neutral NoAccountScreen.
+  // `null` = still deciding; only render the screen once we know.
+  const [noAccount, setNoAccount] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    // Reset is handled at render time (the screen only shows while
+    // the pointer is still NULL) — no synchronous setState here.
+    if (profileLoading || !profile || profile.account_id) return;
+    let cancelled = false;
+    fetch("/api/account/memberships")
+      .then((res) => (res.ok ? res.json() : null))
+      .then(async (data) => {
+        if (cancelled) return;
+        const first = data?.memberships?.[0]?.account_id ?? null;
+        if (!first) {
+          setNoAccount(true);
+          return;
+        }
+        // Pointer broke but the user has companies — activate the
+        // first and restart the app under it (mirrors the server-side
+        // self-heal in getCurrentAccount).
+        await fetch("/api/account/switch", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ account_id: first }),
+        }).catch(() => {});
+        window.location.reload();
+      })
+      .catch(() => {
+        // Network hiccup — don't lock the user out on a guess.
+        if (!cancelled) setNoAccount(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profileLoading, profile]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -38,6 +81,15 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) return null;
+
+  // Authenticated but company-less (FR-023): neutral dead-end screen,
+  // no app chrome, no data of any company reachable. The extra
+  // pointer check makes the state self-resetting: as soon as the
+  // profile gains an active company (invite accepted elsewhere +
+  // refresh), the screen stops rendering without bookkeeping.
+  if (noAccount === true && profile && !profile.account_id) {
+    return <NoAccountScreen />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">

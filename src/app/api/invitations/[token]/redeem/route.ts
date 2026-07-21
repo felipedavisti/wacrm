@@ -1,20 +1,21 @@
 // ============================================================
 // POST /api/invitations/[token]/redeem
 //
-// Authenticated. Caller atomically moves from their personal
-// account (created at signup) to the inviter's account with the
-// invite's role. Heavy lifting lives in the SECURITY DEFINER
-// `redeem_invitation` RPC from migration 019.
+// Authenticated. ADDITIVE since spec 008 (multi-conta): accepting
+// an invite adds a membership in the inviter's account (keeping
+// every membership the caller already has) and makes the joined
+// company the active one. Heavy lifting lives in the SECURITY
+// DEFINER `redeem_invitation` RPC, rewritten in migration 510.
 //
 // Refusal contract (from the RPC)
 //   - SQLSTATE 42501 → 401 (caller not authenticated)
 //   - SQLSTATE 22023 → 400 (invitation not_found / used / expired)
-//   - SQLSTATE 23505 → 409 (caller's account already has data /
-//     they're already in this or another shared account)
+//   - SQLSTATE 23505 → 409 (kept for compatibility; the 510 RPC no
+//     longer raises it — the old "account has data" refusals were
+//     the single-account world)
 //
 // Rate limit (per IP) is the same shape as peek but tighter —
-// a successful redeem changes data, and the RPC's data-loss
-// guard makes brute-force retries pointless past a few attempts.
+// a successful redeem changes data.
 // ============================================================
 
 import { NextResponse } from "next/server";

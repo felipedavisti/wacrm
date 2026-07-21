@@ -26,6 +26,21 @@ export type AccountRole = "owner" | "admin" | "agent" | "viewer";
  */
 export type SalesPosition = "sdr" | "closer" | "vendedor";
 
+/** Every valid sales position, in display order. */
+export const SALES_POSITIONS: readonly SalesPosition[] = [
+  "sdr",
+  "closer",
+  "vendedor",
+] as const;
+
+/** Type-narrow an unknown value into a valid `SalesPosition`. */
+export function isSalesPosition(value: unknown): value is SalesPosition {
+  return (
+    typeof value === "string" &&
+    (SALES_POSITIONS as readonly string[]).includes(value)
+  );
+}
+
 /** Ordered list of every valid role, lowest privilege first. */
 export const ACCOUNT_ROLES: readonly AccountRole[] = [
   "viewer",

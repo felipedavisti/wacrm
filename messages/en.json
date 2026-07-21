@@ -1434,6 +1434,14 @@
       "owner": "Owner",
       "ownerHint": "Full control over account and billing"
     },
+    "positions": {
+      "sdr": "SDR",
+      "closer": "Closer",
+      "vendedor": "Salesperson",
+      "none": "No position",
+      "label": "Position",
+      "updatedToast": "Position of {name} updated"
+    },
     "whatsapp": {
       "title": "WhatsApp connection",
       "description": "Connect your Meta WhatsApp Business API. Credentials, webhook, and setup steps all live here.",

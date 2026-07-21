@@ -1434,6 +1434,14 @@
       "owner": "Proprietário",
       "ownerHint": "Controle total sobre conta e faturamento"
     },
+    "positions": {
+      "sdr": "SDR",
+      "closer": "Closer",
+      "vendedor": "Vendedor",
+      "none": "Sem cargo",
+      "label": "Cargo",
+      "updatedToast": "Cargo de {name} atualizado"
+    },
     "whatsapp": {
       "title": "Conexão do WhatsApp",
       "description": "Conecte sua API do WhatsApp Business da Meta. Credenciais, webhook e etapas de configuração ficam todos aqui.",

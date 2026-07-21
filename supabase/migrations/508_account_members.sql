@@ -40,9 +40,12 @@ DROP TRIGGER IF EXISTS set_updated_at ON account_members;
 CREATE TRIGGER set_updated_at BEFORE UPDATE ON account_members
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- RLS: cada um vê os próprios vínculos; admin vê/gerencia o time da
--- conta. Escritas sensíveis (último owner etc.) passam pelas RPCs
--- SECURITY DEFINER (migration 510), que aplicam guardas adicionais.
+-- RLS: qualquer MEMBRO da conta vê o time dela (o roster de membros
+-- é visível a agent/viewer em modo leitura — comportamento de produto
+-- herdado da 017); só admin+ escreve. Ver o próprio vínculo está
+-- coberto: ser membro da conta implica is_account_member verdadeiro.
+-- Escritas sensíveis (último owner etc.) passam pelas RPCs SECURITY
+-- DEFINER (migration 510), que aplicam guardas adicionais.
 -- Nota de recursão: is_account_member é SECURITY DEFINER owned by
 -- postgres, então a leitura de account_members dentro da função NÃO
 -- reavalia estas policies (mesmo padrão da 017 com profiles).
@@ -50,7 +53,7 @@ ALTER TABLE account_members ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS account_members_select ON account_members;
 CREATE POLICY account_members_select ON account_members FOR SELECT
-  USING (user_id = auth.uid() OR is_account_member(account_id, 'admin'));
+  USING (is_account_member(account_id));
 
 DROP POLICY IF EXISTS account_members_insert ON account_members;
 CREATE POLICY account_members_insert ON account_members FOR INSERT
@@ -125,3 +128,20 @@ ALTER TABLE profiles
 ALTER TABLE account_invitations
   ADD COLUMN IF NOT EXISTS position TEXT
     CHECK (position IN ('sdr', 'closer', 'vendedor'));
+
+-- 6) Visibilidade de profiles no multi-conta. A policy da 017 era
+--    `is_account_member(profiles.account_id)` — mas account_id agora
+--    é a conta ATIVA do usuário, então um colega cuja conta ativa é
+--    OUTRA empresa sumiria do roster. Passa a ser: vejo o meu profile
+--    e o de quem compartilha PELO MENOS UMA empresa comigo (via
+--    account_members).
+DROP POLICY IF EXISTS profiles_select ON profiles;
+CREATE POLICY profiles_select ON profiles FOR SELECT
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM account_members m
+      WHERE m.user_id = profiles.user_id
+        AND is_account_member(m.account_id)
+    )
+  );

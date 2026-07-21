@@ -56,6 +56,31 @@ mexe. Manter as costuras (spec 001/006) reduz o custo quando mudarem:
 `service-role-inventory.md`, novos `*.test.ts`. O upstream também adiciona de
 forma aditiva (`messages/ko.json`, `src/lib/contacts/tag-*`) — sem conflito.
 
+### Divergências da spec 008 (multi-conta) — migrations 508–511
+
+A 008 derruba o axioma "1 account por usuário" do upstream. Divergências
+deliberadas, comentadas em cada migration e resumidas aqui:
+
+- **`account_members` (508)** — pertença N-para-N com papel/cargo por vínculo;
+  `profiles.account_id` ressignificado como **conta ativa** (nullable).
+- **FK `profiles.account_id` → `SET NULL`** (era CASCADE) — excluir uma empresa
+  não pode apagar o profile de quem pertence a outras.
+- **`idx_accounts_one_per_owner` dropado** — owner de N empresas.
+- **`is_account_member` reescrita (509)** — lê `account_members`; mesma
+  assinatura, as ~36 policies seguem intactas.
+- **`profiles_select` reescrita (508)** — visibilidade por "compartilha ao menos
+  uma empresa comigo" (a policy da 017 escondia colega com outra conta ativa).
+- **RPCs 018/019 reescritas (510)** — `redeem_invitation` vira **aditivo** (não
+  move/apaga conta pessoal); `remove_account_member` só remove o vínculo (não
+  cria conta pessoal) e reaponta a conta ativa do removido; +`set_active_account`
+  e `set_member_position`.
+- **`handle_new_user` (511)** — signup **não cria mais account**; empresas são
+  provisionadas pela TI (`provision_company`, grant só service_role).
+
+Arquivos de app com divergência: `src/lib/auth/account.ts` (NoAccountError +
+self-heal), `members/route.ts` (roster via account_members), `dashboard-shell.tsx`
+(gate "sem empresa"), `join/[token]/page.tsx` (copy aditivo).
+
 ## Sequenciamento recomendado das specs
 
 A ordem reduz a superfície de conflito porque as costuras vêm antes do trabalho

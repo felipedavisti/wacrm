@@ -342,9 +342,10 @@ export default function JoinPage() {
               )}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              Accepting moves your login into{' '}
-              <span className="text-muted-foreground">{peek.account_name}</span>. Your
-              empty personal account from signup will be cleaned up.
+              Accepting adds{' '}
+              <span className="text-muted-foreground">{peek.account_name}</span> to
+              your companies — you keep access to every company you already
+              belong to, and can switch between them from the header.
             </p>
           </CardContent>
         </Card>

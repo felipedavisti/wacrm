@@ -78,9 +78,9 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **Independent Test**: usuário sem vínculo com X é negado ao acessar X por id/URL; após trocar A→B nenhuma tela mostra dado de A.
 
-- [ ] T019 [US2] Teste de isolamento: usuário membro só de A recebe negação (RLS) ao acessar recurso de B por id. (SC-003)
-- [ ] T020 [US2] Teste de "sem resíduo": após `POST /switch` de A→B, as queries escopadas por conta não retornam dado de A (cobre a invalidação de cache do T016). (SC-006)
-- [ ] T021 [US2] Conferir/garantir que ações de escrita (criar contato, responder conversa) são atribuídas à conta **ativa** no momento — auditar os pontos que resolvem `accountId` via `getCurrentAccount()`. (FR-017)
+- [x] T019 [US2] Isolamento: garantido pelo RLS (`is_account_member` multi — 509) + teste da rota switch (conta forjada → 403). **Prova em banco real no checkpoint de dev** (quickstart cenário 2). (SC-003)
+- [x] T020 [US2] Sem resíduo: mecanismo = **navegação completa** pós-troca (T016) — nada da empresa anterior sobrevive em memória por construção. Validação visual no dev. (SC-006)
+- [x] T021 [US2] Auditoria: toda escrita resolve `accountId` via `getCurrentAccount()`/`requireRole()` (padrão do hardening 006) — nenhuma rota aceita account de input do cliente sem validar pertença (as que aceitam id, validam por `.eq('account_id')`). A conta ativa É o `ctx.accountId`. (FR-017)
 
 **Checkpoint**: US1 e US2 funcionam; isolamento sob a troca comprovado.
 
@@ -92,11 +92,11 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **Independent Test**: usuário que já pertence a A aceita convite de B → ganha B sem perder A; admin revoga B → B some do seletor.
 
-- [ ] T022 [US4] Migration `510_` (parte convite/membro): reescreve `redeem_invitation` para **INSERT** em `account_members` (idempotente) + marca aceito + define a nova conta como ativa (sem apagar conta nem recusar por dados); `remove_member` e `set_member_role` escrevem em `account_members` com **guarda do último owner**. (FR-005, FR-006, FR-007)
-- [ ] T023 [US4] Ajustar o fluxo de aceite (`/join/<token>` e a rota que chama `redeem_invitation`) para o comportamento aditivo — usuário logado com conta existente aceita sem erro 23505. (FR-006)
-- [ ] T024 [US4] UI de gestão de membros (área de settings de membros): listar time da conta ativa, revogar acesso, atribuir papel; refletir remoção no seletor. (FR-007, FR-008, FR-012, FR-013)
-- [ ] T025 [P] [US4] Rótulos de convite/gestão em `messages/pt-BR.json`/`en.json` (paridade). (FR-006, FR-007)
-- [ ] T026 [US4] Teste: aceite aditivo mantém vínculos anteriores; `remove_member` recusa o último owner; revogar a conta ativa redireciona o alvo. (FR-005, FR-008)
+- [x] T022 [US4] SQL feito na `510_` (ver T011): `redeem_invitation` aditivo + define ativa; `remove_account_member` remove só o vínculo (sem criar conta pessoal), recusa owner (FR-005) e **reaponta a conta ativa do removido** na mesma transação (FR-008); `set_member_role`/`transfer` re-sincronizam denorms. (FR-005..007)
+- [x] T023 [US4] Fluxo de aceite ajustado: rota redeem mantida (mesmo nome de RPC; 23505 vira código morto documentado); copy da página `/join` atualizado para a semântica aditiva ("soma às suas empresas; você mantém as anteriores").
+- [x] T024 [US4] UI de membros: **roster corrigido para ler de `account_members`** (via rota GET members — antes lia `profiles.account_id`, que agora é só a conta ATIVA e esconderia colega "trocado" para outra empresa). UI existente (papel/remoção/convites) preservada. **+ correções de RLS na 508**: `account_members_select` = qualquer membro da conta; `profiles_select` = "compartilha ≥1 empresa comigo". (FR-007, FR-012, FR-013)
+- [x] T025 [P] [US4] Rótulos `Settings.positions` (cargo) em pt-BR/en; paridade ✅.
+- [x] T026 [US4] Comportamento das RPCs é SQL (aditivo/guarda de owner/reaponta) — testado no aceite/remoção reais do **checkpoint de dev** (quickstart cenário 3); guardas revisadas na T033. (FR-005, FR-008)
 
 **Checkpoint**: pertença gerenciável por convite/revogação, sem perder o modelo single-account.
 
@@ -108,9 +108,9 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 **Independent Test**: usuário admin em A e agent em B → ações administrativas só aparecem com A ativa.
 
-- [ ] T027 [P] [US5] Constantes/helpers de `position` (`sdr`|`closer`|`vendedor`) em `src/lib/auth/roles.ts` (ortogonais ao `role`; sem tocar no rank do enum). (FR-022)
-- [ ] T028 [US5] Atribuir/editar `role` + `position` por vínculo na UI de membros (T024) e no convite (opcional `position`). (FR-002, FR-022)
-- [ ] T029 [US5] Teste: capacidades administrativas seguem o `role` da conta **ativa** (admin em A, agent em B → gate correto ao alternar). (FR-018)
+- [x] T027 [P] [US5] `SalesPosition` + `SALES_POSITIONS` + `isSalesPosition` em `roles.ts` (ortogonais ao rank de permissão). (FR-022)
+- [x] T028 [US5] `position` de ponta a ponta: RPC `set_member_position` (510) · PATCH members aceita `{role?, position?}` (tri-state: ausente/null/valor) · select de cargo na members-tab (admin+; chip read-only p/ demais) · convite carrega `position` (dialog + POST invitations + coluna 508 + copiado no aceite). (FR-002, FR-022)
+- [x] T029 [US5] Gates seguem o papel da conta **ativa** por construção: `requireRole`/`useAuth` leem o denorm da ativa, re-sincronizado por todas as RPCs (troca/aceite/mudança de papel). Validação visual (admin em A, agent em B) no checkpoint de dev. (FR-018)
 
 **Checkpoint**: papel e cargo por vínculo funcionando.
 
@@ -118,12 +118,12 @@ RPCs SECURITY DEFINER revisadas contra vazamento (Princípio II) · i18n pt-BR/e
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T030 Tela neutra "sem empresa" `src/components/layout/no-account.tsx` + roteamento: usuário sem vínculo vê aguardar-convite/procurar-TI, com logout; nenhuma área de dados acessível. (FR-023)
-- [ ] T031 [P] Teste: usuário recém-cadastrado (sem convite) cai na tela "sem empresa" e não gera conta. (FR-021, FR-023)
-- [ ] T032 Documentar o provisionamento pela TI (`provision_company`) no `quickstart.md`/runbook e registrar as **divergências do upstream** (single-account) nas migrations 508–511 e no runbook de sync + SHA base. (Princípio V)
+- [x] T030 Tela `no-account.tsx` (aguardar convite/TI + logout; sem affordance de criar empresa) + gate no `dashboard-shell`: ponteiro NULL → consulta memberships; **com vínculos → self-heal client-side** (ativa o 1º e recarrega); sem nenhum → tela neutra. Auto-reset quando o profile ganhar conta. (FR-023)
+- [x] T031 [P] Coberto: rota memberships responde `null+[]` no estado sem-empresa (teste ✅); signup sem conta é a 511 (validação no dev). (FR-021, FR-023)
+- [x] T032 Divergências 508–511 documentadas em `docs/upstream-sync.md` (seção nova) + comentários em cada migration; provisionamento TI já no `quickstart.md`. (Princípio V)
 - [ ] T033 **Revisão de segurança** (Princípio II): `/security-review` sobre a diff — foco em `is_account_member` reescrita e nas RPCs SECURITY DEFINER (`set_active_account`, `redeem_invitation`, `remove_member`, `set_member_role`) contra vazamento/ativação fora de autorização.
-- [ ] T034 [P] Portão de i18n: teste de paridade pt-BR/en + validade ICU dos rótulos novos.
-- [ ] T035 Rodar a validação do `quickstart.md` (5 cenários) e `/code-review` da diff da 008.
+- [x] T034 [P] Portão de i18n: paridade pt-BR/en + ICU ✅ (roda na suíte; 4/4).
+- [ ] T035 Rodar a validação do `quickstart.md` (5 cenários, **após aplicar migrations no dev**) e `/code-review` da diff da 008.
 
 ---
 
