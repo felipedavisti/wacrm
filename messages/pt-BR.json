@@ -1873,7 +1873,22 @@
     "rawPayload": "Dados brutos recebidos",
     "rawSuppressed": "Evento duplicado (absorvido por este lead)",
     "close": "Fechar",
-    "selected": "{count} selecionado(s)"
+    "selected": "{count} selecionado(s)",
+    "unroutedTitle": "Leads sem empresa",
+    "unroutedDesc": "Chegaram, mas a origem não está cadastrada em nenhuma empresa — então ninguém está trabalhando eles. Diga de quem é a origem e todos são liberados de uma vez.",
+    "unroutedEmpty": "Nenhum lead parado. Toda origem que chegou está cadastrada.",
+    "unroutedCount": "{count} {count, plural, =1 {lead parado} other {leads parados}}",
+    "unroutedSince": "desde {date}",
+    "unroutedKindFormId": "Formulário da Meta",
+    "unroutedKindFilial": "Filial do site",
+    "unroutedAssign": "Vincular à empresa",
+    "unroutedChoose": "Escolha a empresa…",
+    "unroutedConfirm": "Vincular e liberar",
+    "unroutedWorking": "Vinculando…",
+    "unroutedToast": "Origem cadastrada e {count} {count, plural, =1 {lead liberado} other {leads liberados}}",
+    "unroutedToastRegistered": "Origem cadastrada. Os próximos leads já caem nesta empresa.",
+    "unroutedToastFailed": "Falha ao vincular a origem",
+    "unkeyed": "{count} {count, plural, =1 {lead sem identificação de origem} other {leads sem identificação de origem}} — precisam de atribuição manual."
   },
   "Notifications": {
     "title": "Notificações",

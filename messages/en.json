@@ -1873,7 +1873,22 @@
     "rawPayload": "Raw data received",
     "rawSuppressed": "Duplicate event (absorbed by this lead)",
     "close": "Close",
-    "selected": "{count} selected"
+    "selected": "{count} selected",
+    "unroutedTitle": "Leads with no company",
+    "unroutedDesc": "They arrived, but their source isn't registered to any company — so nobody is working them. Say who the source belongs to and they're all released at once.",
+    "unroutedEmpty": "No stuck leads. Every source that arrived is registered.",
+    "unroutedCount": "{count} stuck {count, plural, =1 {lead} other {leads}}",
+    "unroutedSince": "since {date}",
+    "unroutedKindFormId": "Meta form",
+    "unroutedKindFilial": "Website branch",
+    "unroutedAssign": "Assign to company",
+    "unroutedChoose": "Choose the company…",
+    "unroutedConfirm": "Assign and release",
+    "unroutedWorking": "Assigning…",
+    "unroutedToast": "Source registered and {count} {count, plural, =1 {lead} other {leads}} released",
+    "unroutedToastRegistered": "Source registered. Future leads will land in this company.",
+    "unroutedToastFailed": "Failed to assign the source",
+    "unkeyed": "{count} {count, plural, =1 {lead has} other {leads have}} no source identifier — they need manual assignment."
   },
   "Notifications": {
     "title": "Notifications",

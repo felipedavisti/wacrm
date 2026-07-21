@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/use-auth';
 import type { CanonicalLead } from '@/lib/leads/canonical';
 
 import { LeadDetailSheet } from './lead-detail-sheet';
+import { UnroutedQueue } from './unrouted-queue';
 
 export interface LeadRow {
   id: string;
@@ -158,6 +159,10 @@ export default function LeadsPage() {
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{t('description')}</p>
       </div>
+
+      {/* Leads órfãos primeiro: são os que ninguém está trabalhando
+          e que somem de qualquer filtro por empresa (FR-022). */}
+      <UnroutedQueue onResolved={load} />
 
       {/* Filtros combináveis (FR-027) */}
       <div className="flex flex-wrap items-center gap-2">
