@@ -118,6 +118,12 @@ revisadas (Princípio II) · i18n pt-BR/en.
 
 ---
 
+## FR-047 — Template de boas-vindas do lead de formulário (opcional)
+
+- [ ] T032 Opção **por conta** (padrão **OFF**) "enviar template de boas-vindas ao criar um lead de formulário Meta" + a ação de envio: ao criar o lead (US1), se a conta tiver a opção ligada, disparar um **template** (reusa o envio de templates da **007**, respeita a janela de 24h da **005**) para iniciar a conversa e engajar o lead. Desligada → nenhum envio. A condução por IA da conversa fica nas **automações futuras (012)**. (FR-047)
+
+---
+
 ## Dependencies & Execution Order
 
 - **Foundational (Phase 2)** bloqueia tudo. Ordem: T003 → T004/T005 → T006 → T007 (worker usa T006); T008/T009/T010 [P].
