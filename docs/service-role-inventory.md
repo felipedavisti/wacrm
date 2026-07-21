@@ -17,9 +17,17 @@ Referência de tenancy: `account_id NOT NULL` + RLS via `is_account_member`
 ## Fábricas do cliente
 
 `src/lib/flows/admin-client.ts`, `src/lib/automations/admin-client.ts`,
-`src/lib/ai/admin-client.ts` — fábricas idênticas (`createClient(URL,
-SERVICE_ROLE_KEY)`), sem queries. O webhook e `whatsapp/config` têm cópias
-inline da mesma fábrica.
+`src/lib/ai/admin-client.ts`, `src/lib/leads/admin-client.ts` — fábricas
+idênticas (`createClient(URL, SERVICE_ROLE_KEY)`), sem queries. O webhook e
+`whatsapp/config` têm cópias inline da mesma fábrica.
+
+### Por que o Motor de Leads (spec 009) precisa de service_role
+
+A ingestão acontece **antes de existir sessão** (POST do site, webhook da Meta) e,
+quando a campanha/filial não tem de-para, **antes de o lead ter empresa** — não há
+`auth.uid()` para o RLS avaliar, e um lead sem `account_id` não é visível por
+nenhuma policy. Escopo garantido por: `requireAccountScope` no ponto de entrega
+(fail-closed) e `account_id` carimbado em toda escrita de domínio.
 
 ## Bibliotecas (engines / envio / auth)
 
@@ -31,6 +39,10 @@ inline da mesma fábrica.
 | `flows/engine.ts` | ✅ Escopado | `accountId` do webhook; run/flow/inbound `.eq('account_id')`; demais por id de run/flow já account-scoped |
 | `automations/engine.ts` | ✅ Escopado | guard de posse do contato no entrypoint (`runAutomationsForTrigger`); steps `.eq('account_id')` |
 | `ai/auto-reply.ts` | ✅ Escopado | `accountId` do webhook; config/knowledge/automations `.eq('account_id')`; conversa por `conversationId` account-scoped |
+| `leads/ingest.ts` | ✅ Escopado (spec 009) | grava raw/lead antes de haver conta (por design); o `account_id` vem do `routing_map` e é carimbado no lead e na perna de entrega. Lead sem rota fica `account_id NULL` → invisível a qualquer policy (superfície central) |
+| `leads/routing.ts` | ✅ Cross-account **por design** | lê `routing_map` (tabela central, deny-by-default no cliente) para DECIDIR a empresa; não retorna dado de negócio |
+| `leads/deliver-internal.ts` | ✅ Escopado | `requireAccountScope(account_id)` na entrada; contato/deal/consulta de funil todos `.eq('account_id')`; idempotente por `deal_id` já gravado |
+| `leads/worker.ts` | ✅ Escopado | opera por job já carimbado; delega a `deliver-internal` (que revalida o escopo) |
 | `auth/api-context.ts` | ✅ Invariante | API key fixa a conta (`accountId = row.account_id` do hash) |
 | `api-keys/store.ts` | ✅ Invariante | o hash da key **é** a credencial que estabelece a conta; lookups por id já resolvido |
 | `automations/steps-tree.ts` | ⚠️ **Sem escopo próprio** | opera em `automation_steps` só por `automation_id` (tabela sem `account_id`). Seguro **apenas** porque todo caller valida posse antes. Ver "Pontos frágeis" |
