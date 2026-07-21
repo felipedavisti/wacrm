@@ -8,6 +8,7 @@ import { supabaseAdmin } from "@/lib/leads/admin-client";
 import { ingestLead, recordRejectedEvent } from "@/lib/leads/ingest";
 import { enrichMetaLead } from "@/lib/leads/meta-graph";
 import { normalizeMetaFormLead, type MetaWebhookValue } from "@/lib/leads/normalize";
+import { resolveLeadsToken, resolveSourceByKey } from "@/lib/leads/routing";
 
 // /api/leads/ingest/meta (spec 009, US1)
 //
@@ -101,7 +102,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  const token = process.env.META_LEADS_ACCESS_TOKEN;
   const results: Array<{ leadgen_id?: string; status: string }> = [];
 
   for (const entry of body.entry) {
@@ -111,6 +111,20 @@ export async function POST(request: Request) {
       if (!value.leadgen_id) continue;
 
       try {
+        // O token vem do App que a CONTA cadastrou — não de env
+        // global: uma conta pode ter vários Apps da Meta, e é o
+        // formulário que diz a qual pertence (migration 517).
+        // Precisa acontecer antes de normalizar, porque sem os dados
+        // da Graph não há o que normalizar.
+        const source = value.form_id
+          ? await resolveSourceByKey(admin, "form_id", value.form_id)
+          : null;
+        const token = await resolveLeadsToken(
+          admin,
+          { metaAppId: source?.metaAppId, accountId: source?.accountId },
+          decrypt,
+        );
+
         // Sem token não dá para enriquecer — mas o lead NÃO se perde:
         // entra com os IDs que o webhook trouxe e a pendência fica
         // visível. Um reprocessamento posterior completa os dados.
