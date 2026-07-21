@@ -81,6 +81,14 @@ Arquivos de app com divergência: `src/lib/auth/account.ts` (NoAccountError +
 self-heal via RPC), `members/route.ts` (roster via account_members),
 `dashboard-shell.tsx` (gate "sem empresa"), `join/[token]/page.tsx` (copy aditivo).
 
+- **`is_active_member` + reescopo das policies de domínio (512)** — hotfix do
+  teste de dev: com pertença N-para-N, o RLS por membership deixava o usuário
+  ver TODAS as suas empresas misturadas em queries client-side sem filtro.
+  As policies das tabelas de domínio passam a exigir "membro E conta ativa"
+  (troca mecânica `is_account_member` → `is_active_member`, preservando
+  min_role). Pertença pura permanece só em accounts/account_members/profiles/
+  account_invitations (seletor/roster).
+
 **Achados da revisão de segurança da 008** (corrigidos na própria 508):
 
 1. `account_members` SEM policies de escrita (deny-by-default) — uma policy

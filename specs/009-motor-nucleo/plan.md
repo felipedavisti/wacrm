@@ -60,12 +60,16 @@ tela de admin/TI, não "account de staging".
 
 ## Project Structure
 
+> **Nota de numeração**: a `512_` foi consumida pelo hotfix de escopo da 008
+> (`512_active_account_scoping.sql`). A faixa da 009 começa em **`513_`**
+> (ler os nomes abaixo como 513–516).
+
 ```text
 supabase/migrations/
-├── 512_lead_core.sql            # ledger + raw + rejected (+RLS)
-├── 513_lead_outbox.sql          # delivery_jobs/attempts + pg_cron worker (SKIP LOCKED, backoff)
-├── 514_routing_map.sql          # routing_map (RLS admin) + account_destination_config
-└── 515_deal_tracking.sql        # deals.tracking JSONB + seed custom_fields de rastreamento
+├── 513_lead_core.sql            # ledger + raw + rejected (+RLS)
+├── 514_lead_outbox.sql          # delivery_jobs/attempts + worker (SKIP LOCKED, backoff)
+├── 515_routing_map.sql          # routing_map (RLS admin) + account_destination_config
+└── 516_deal_tracking.sql        # deals.tracking JSONB + seed custom_fields de rastreamento
 
 src/
 ├── app/api/leads/
