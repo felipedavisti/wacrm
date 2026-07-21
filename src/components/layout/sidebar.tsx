@@ -14,6 +14,7 @@ import {
   GitBranch,
   LayoutDashboard,
   LogOut,
+  Magnet,
   MessageSquare,
   Radio,
   Settings,
@@ -87,6 +88,12 @@ interface NavItem {
    * Purely informational — doesn't affect routing or access.
    */
   beta?: boolean;
+  /**
+   * Hide the row unless the caller is the account owner. Cosmetic
+   * only — the real gate is `requireRole('owner')` on the routes;
+   * this just keeps a dead link out of everyone else's sidebar.
+   */
+  ownerOnly?: boolean;
 }
 
 const navItems: NavItem[] = [
@@ -95,6 +102,9 @@ const navItems: NavItem[] = [
   { href: "/notifications", labelKey: "notifications", icon: Bell },
   { href: "/contacts", labelKey: "contacts", icon: Users },
   { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
+  // Operação do Motor de Leads (spec 009) — expõe payload bruto com
+  // PII, por isso restrito ao owner.
+  { href: "/leads", labelKey: "leads", icon: Magnet, ownerOnly: true },
   { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
   { href: "/automations", labelKey: "automations", icon: Zap },
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
@@ -209,6 +219,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
             {navItems.map((item) => {
+              // Rows the caller has no business seeing simply don't
+              // render (the routes enforce the real check).
+              if (item.ownerOnly && accountRole !== "owner") return null;
+
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));
