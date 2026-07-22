@@ -102,6 +102,10 @@ export async function createCtwaLead(
         // Contato e conversa já existem: a entrega só precisa criar
         // o negócio, sem duplicar contato.
         contact_id: input.contactId,
+        // Vínculo de verdade (migration 519) — é o que deixa abrir a
+        // conversa a partir do lead, e achar a conversa de anúncio
+        // que não virou lead.
+        conversation_id: input.conversationId,
         routing_status: "resolved",
         overall_status: "pending",
       })

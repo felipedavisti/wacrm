@@ -14,7 +14,12 @@
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
+import {
+  AlertTriangle,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -24,6 +29,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useAuth } from '@/hooks/use-auth';
 import type { CanonicalLead } from '@/lib/leads/canonical';
 
+import { CtwaGaps } from './ctwa-gaps';
 import { LeadDetailSheet } from './lead-detail-sheet';
 import { LeadsMetrics } from './leads-metrics';
 import { UnroutedQueue } from './unrouted-queue';
@@ -37,6 +43,8 @@ export interface LeadRow {
   overall_status: 'pending' | 'sent' | 'partially_sent' | 'failed';
   contact_id: string | null;
   deal_id: string | null;
+  /** Só CTWA: a conversa que originou o lead (migration 519). */
+  conversation_id: string | null;
   created_at: string;
 }
 
@@ -176,6 +184,9 @@ export default function LeadsPage() {
       {/* Leads órfãos primeiro: são os que ninguém está trabalhando
           e que somem de qualquer filtro por empresa (FR-022). */}
       <UnroutedQueue onResolved={refresh} />
+
+      {/* Conversa de anúncio sem lead: falha que parece sucesso. */}
+      <CtwaGaps days={days} refreshKey={tick} />
 
       {/* Indicadores do período selecionado (FR-030). */}
       <LeadsMetrics days={days} refreshKey={tick} />
@@ -317,6 +328,23 @@ export default function LeadsPage() {
                             : ''}
                       </span>
                     </button>
+
+                    {/* Atalho direto para a conversa (CTWA). Na
+                        linha, não só no detalhe: "abrir a conversa"
+                        é a ação mais frequente sobre um lead de
+                        anúncio, e não deveria custar dois cliques. */}
+                    {lead.conversation_id && (
+                      <a
+                        href={`/inbox?c=${lead.conversation_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={t('openConversation')}
+                        aria-label={t('openConversation')}
+                        className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <MessageSquare className="size-4" />
+                      </a>
+                    )}
 
                     {lead.routing_status === 'pending' && (
                       <span className="hidden shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] text-amber-500 sm:inline">

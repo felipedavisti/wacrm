@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -168,6 +168,21 @@ export function LeadDetailSheet({
                         ? t('routingPending')
                         : t('noDeal')}
                     </p>
+                  )}
+
+                  {/* Só o CTWA tem conversa. Abre em outra guia de
+                      propósito: quem está triando leads não quer
+                      perder a lista para ler uma conversa. */}
+                  {detail.lead.conversation_id && (
+                    <a
+                      href={`/inbox?c=${detail.lead.conversation_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 pt-1 text-xs text-primary hover:underline"
+                    >
+                      <MessageSquare className="size-3.5" />
+                      {t('openConversation')}
+                    </a>
                   )}
                 </section>
 

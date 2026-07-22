@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     let query = ctx.supabase
       .from("lead_ingestions")
       .select(
-        "id, source, medium, canonical, routing_status, overall_status, contact_id, deal_id, created_at",
+        "id, source, medium, canonical, routing_status, overall_status, contact_id, deal_id, conversation_id, created_at",
         { count: "exact" },
       )
       .eq("account_id", ctx.accountId);
