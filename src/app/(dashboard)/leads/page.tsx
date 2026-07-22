@@ -32,6 +32,7 @@ import type { CanonicalLead } from '@/lib/leads/canonical';
 import { CtwaGaps } from './ctwa-gaps';
 import { LeadDetailSheet } from './lead-detail-sheet';
 import { LeadsMetrics } from './leads-metrics';
+import { RecoveryPanel } from './recovery-panel';
 import { UnroutedQueue } from './unrouted-queue';
 
 export interface LeadRow {
@@ -190,6 +191,9 @@ export default function LeadsPage() {
 
       {/* Indicadores do período selecionado (FR-030). */}
       <LeadsMetrics days={days} refreshKey={tick} />
+
+      {/* Contingência: a Meta tem lead que nunca chegou aqui? */}
+      <RecoveryPanel onImported={refresh} />
 
       {/* Filtros combináveis (FR-027) */}
       <div className="flex flex-wrap items-center gap-2">

@@ -24,6 +24,13 @@ const GRAPH_VERSION = "v24.0";
 
 export class MetaGraphError extends Error {}
 
+/** Filtro `created_time >= since` no formato que a Graph espera. */
+function filterSince(since: number): string {
+  return JSON.stringify([
+    { field: "time_created", operator: "GREATER_THAN", value: since },
+  ]);
+}
+
 function graphUrl(path: string, fields: string): string {
   const url = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/${path}`);
   url.searchParams.set("fields", fields);
@@ -148,6 +155,8 @@ export async function listFormLeads(
   token: string,
   formId: string,
   limit = 5,
+  /** Epoch em segundos — só leads criados a partir daí (FR-023). */
+  since?: number,
 ): Promise<MetaLeadgen[]> {
   const url = new URL(
     `https://graph.facebook.com/${GRAPH_VERSION}/${formId}/leads`,
@@ -157,6 +166,9 @@ export async function listFormLeads(
     "id,created_time,field_data,campaign_name,campaign_id,ad_id,ad_name,adset_name,adset_id,platform,form_id",
   );
   url.searchParams.set("limit", String(limit));
+  // Filtra na Meta, não aqui: puxar 90 dias de leads para descartar
+  // 89 desperdiça cota da API e tempo do operador esperando.
+  if (since) url.searchParams.set("filtering", filterSince(since));
 
   const res = await graphGet<{ data?: MetaLeadgen[] }>(
     url.toString(),
