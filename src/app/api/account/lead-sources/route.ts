@@ -146,6 +146,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "'value' is required" }, { status: 400 });
     }
 
+    // O `meta_app_id` decide qual token da Meta enriquece esta origem,
+    // e esse token é lido depois com service_role. Um id de App de
+    // OUTRA empresa faria a nossa ingestão rodar com a credencial
+    // dela — então a posse é verificada aqui, na entrada, e não
+    // apenas assumida. A FK sozinha não olha o dono.
+    const metaAppId =
+      typeof body?.meta_app_id === "string" && body.meta_app_id
+        ? body.meta_app_id
+        : null;
+    if (metaAppId) {
+      const { data: app } = await ctx.supabase
+        .from("meta_apps")
+        .select("id")
+        .eq("id", metaAppId)
+        .eq("account_id", ctx.accountId)
+        .maybeSingle();
+      if (!app) {
+        return NextResponse.json(
+          { error: "O App da Meta informado não pertence a esta empresa." },
+          { status: 400 },
+        );
+      }
+    }
+
     const { data, error } = await ctx.supabase
       .from("account_lead_sources")
       .insert({
@@ -153,8 +177,7 @@ export async function POST(request: Request) {
         kind,
         value,
         label: typeof body?.label === "string" ? body.label.trim() || null : null,
-        meta_app_id:
-          typeof body?.meta_app_id === "string" ? body.meta_app_id : null,
+        meta_app_id: metaAppId,
         pipeline_id:
           typeof body?.pipeline_id === "string" ? body.pipeline_id : null,
         stage_id: typeof body?.stage_id === "string" ? body.stage_id : null,

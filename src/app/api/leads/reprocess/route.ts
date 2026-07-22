@@ -20,6 +20,7 @@
 import { NextResponse } from "next/server";
 
 import { requireRole, toErrorResponse } from "@/lib/auth/account";
+import { supabaseAdmin } from "@/lib/leads/admin-client";
 
 const SOURCES = new Set(["site", "meta_form", "meta_ctwa"]);
 const MAX_BATCH = 500;
@@ -79,9 +80,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ requeued: 0 });
     }
 
+    // Escrita via service_role, e NÃO pelo cliente RLS.
+    //
+    // `lead_delivery_jobs` e `lead_ingestions` são select-only por
+    // design (513/514): quem muda o estado da entrega é o worker, por
+    // RPC. Um UPDATE pelo cliente RLS não dá erro — ele afeta ZERO
+    // linhas em silêncio, e a rota devolvia `requeued: 0` como se não
+    // houvesse nada a reprocessar. O botão "Reenviar" do painel nunca
+    // funcionou de verdade.
+    //
+    // A tenancy continua garantida pelo `.eq("account_id", …)` abaixo,
+    // com o account vindo da SESSÃO — nunca do corpo do request.
+    const admin = supabaseAdmin();
+
     // Reabre só o que NÃO está em curso. O filtro por account_id é o
     // que impede reprocessar lead de outra empresa por id forjado.
-    const { data: reopened, error: updErr } = await ctx.supabase
+    const { data: reopened, error: updErr } = await admin
       .from("lead_delivery_jobs")
       .update({
         status: "pending",
@@ -105,7 +119,7 @@ export async function POST(request: Request) {
 
     // O status do lead volta a "pending" para o painel refletir que
     // há trabalho em curso; o worker recalcula ao concluir.
-    await ctx.supabase
+    await admin
       .from("lead_ingestions")
       .update({ overall_status: "pending" })
       .in("id", ingestionIds)

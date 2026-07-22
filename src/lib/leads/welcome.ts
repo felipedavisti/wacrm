@@ -23,6 +23,7 @@ import { resolveConversationByPhone } from "@/lib/whatsapp/resolve-conversation"
 import { sendMessageToConversation } from "@/lib/whatsapp/send-message";
 
 import type { CanonicalLead } from "./canonical";
+import { escapeLikePattern } from "./routing";
 
 export interface WelcomeInput {
   ingestionId: string;
@@ -62,7 +63,10 @@ export async function maybeSendLeadWelcome(
       )
       .eq("account_id", input.accountId)
       .eq("kind", key.kind)
-      .ilike("value", key.value)
+      // Escapado: um `%` na chave casaria com a origem de outra
+      // empresa e mandaria uma mensagem REAL, do número dela, para um
+      // telefone escolhido por quem postou o evento.
+      .ilike("value", escapeLikePattern(key.value))
       .limit(1)
       .maybeSingle();
 

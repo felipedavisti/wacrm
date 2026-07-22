@@ -34,6 +34,12 @@ export async function GET() {
   try {
     const ctx = await requireDeploymentAdmin();
 
+    // Só a chave de roteamento e a data saem daqui — nada de nome,
+    // telefone ou CPF. Esta é a única superfície do produto que
+    // atravessa empresas, e a decisão que ela apoia ("de quem é este
+    // formulário?") não precisa de um único dado pessoal para ser
+    // tomada. Amostra de contato foi removida na revisão de
+    // segurança de 2026-07-22.
     const { data, error } = await supabaseAdmin()
       .from("lead_ingestions")
       .select("id, source, canonical, created_at")
@@ -61,7 +67,6 @@ export async function GET() {
         count: number;
         first_seen: string;
         last_seen: string;
-        sample: { name?: string; phone?: string } | null;
       }
     >();
 
@@ -87,10 +92,6 @@ export async function GET() {
           count: 1,
           first_seen: row.created_at,
           last_seen: row.created_at,
-          sample: {
-            name: row.canonical?.contact?.name,
-            phone: row.canonical?.contact?.phone,
-          },
         });
       }
     }

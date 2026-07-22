@@ -23,6 +23,7 @@ import { requireDeploymentAdmin } from "@/lib/auth/deployment-admin";
 import { supabaseAdmin } from "@/lib/leads/admin-client";
 import type { CanonicalLead } from "@/lib/leads/canonical";
 import { enqueueDelivery } from "@/lib/leads/ingest";
+import { escapeLikePattern } from "@/lib/leads/routing";
 
 const KINDS = new Set(["form_id", "filial"]);
 
@@ -75,8 +76,12 @@ export async function POST(request: Request) {
         account_id: accountId,
         kind,
         value,
-        meta_app_id:
-          typeof body?.meta_app_id === "string" ? body.meta_app_id : null,
+        // Não aceitamos App da Meta por aqui: esta rota roda com
+        // service_role numa superfície entre empresas, e um id não
+        // verificado escolheria o token de outra conta. Quem quiser
+        // vincular o App faz isso em Configurações, onde a posse é
+        // checada.
+        meta_app_id: null,
         pipeline_id:
           typeof body?.pipeline_id === "string" ? body.pipeline_id : null,
       });
@@ -95,7 +100,7 @@ export async function POST(request: Request) {
           .from("account_lead_sources")
           .select("account_id")
           .eq("kind", kind)
-          .ilike("value", value)
+          .ilike("value", escapeLikePattern(value))
           .maybeSingle();
         if (owner && owner.account_id !== accountId) {
           return NextResponse.json(

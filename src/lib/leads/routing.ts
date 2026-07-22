@@ -22,6 +22,24 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { CanonicalLead } from "./canonical";
 
+/**
+ * Escapa os curingas do LIKE antes de a chave virar PADRÃO de busca.
+ *
+ * Sem isso, um evento com `filial: "%"` casa com a PRIMEIRA origem de
+ * QUALQUER empresa — o lead (e a saudação automática, se ligada)
+ * cairia numa conta que o remetente não tem relação nenhuma. Como o
+ * token do site é um segredo único do deployment, quem integra o site
+ * de uma empresa conseguiria injetar em outra.
+ *
+ * Continuamos usando `ilike` (e não `eq`) porque a comparação PRECISA
+ * ser case-insensitive: a filial vem digitada num formulário
+ * ("São Luís" / "SÃO LUÍS") e o índice único é por `lower(value)`.
+ * O que se perde ao escapar é só o curinga — nunca a intenção.
+ */
+export function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => `\\${c}`);
+}
+
 export interface RoutingResult {
   accountId: string;
   pipelineId: string | null;
@@ -50,7 +68,8 @@ export async function resolveSourceByKey(
     .eq("kind", kind)
     // Case-insensitive: a filial vem digitada de um formulário. O
     // índice único também é por lower(value), então casa 1-para-1.
-    .ilike("value", value)
+    // O valor vem do EVENTO — escapado para não virar curinga.
+    .ilike("value", escapeLikePattern(value))
     .limit(1)
     .maybeSingle();
 
@@ -115,12 +134,19 @@ export async function resolveLeadsToken(
     }
   };
 
-  if (opts.metaAppId) {
+  if (opts.metaAppId && opts.accountId) {
     const direct = await pick(
       admin
         .from("meta_apps")
         .select("leads_access_token")
         .eq("id", opts.metaAppId)
+        // Escopo obrigatório: `meta_app_id` chega da origem cadastrada,
+        // que por sua vez aceita um id vindo do cliente. Sem este
+        // filtro, um admin que soubesse o UUID do App de outra empresa
+        // faria a ingestão dele rodar com o TOKEN DA META alheio —
+        // uma consulta service_role devolvendo segredo descriptografado
+        // não pode confiar num id não verificado.
+        .eq("account_id", opts.accountId)
         .maybeSingle(),
     );
     if (direct) return direct;

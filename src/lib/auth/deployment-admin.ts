@@ -7,14 +7,25 @@
 // olhar por cima das empresas para dizer "este formulário é da
 // Salvador".
 //
-// Quem é esse alguém: **owner de qualquer empresa do deployment**.
-// No modelo um-deploy-por-cliente, é a TI/dono da operação. Não
-// existe conceito de super-admin no produto, e inventar um só para
-// isto seria pior.
+// Quem é esse alguém:
 //
-// Regra que fecha o buraco óbvio: um owner só pode direcionar leads
-// para empresas que ELE possui. Sem isso, o owner da empresa A
-// poderia despejar leads na empresa B.
+//   1. os usuários listados em `LEADS_DEPLOYMENT_ADMINS`, se a
+//      variável existir; ou
+//   2. na ausência dela, **owner de qualquer empresa** — o padrão do
+//      modelo um-deploy-por-cliente, onde a TI/dono da operação é a
+//      única pessoa com esse papel.
+//
+// POR QUE A VARIÁVEL EXISTE (revisão de segurança de 2026-07-22):
+// o padrão (2) só é seguro enquanto o deployment atende UM cliente.
+// Com duas empresas de donos diferentes no mesmo deploy, o owner da
+// empresa A vê as chaves de origem não cadastradas da empresa B e
+// pode reivindicá-las para si — levando os leads de B (nome,
+// telefone, e-mail, CPF) para o funil de A, e de forma permanente,
+// porque o cadastro é "quem chegar primeiro". Antes de colocar um
+// segundo cliente no mesmo deploy, DEFINA a variável.
+//
+// Regra que continua valendo em qualquer um dos modos: um admin só
+// pode direcionar leads para empresas que ELE possui.
 //
 // Server-only (importa o cliente SSR), como ./account.
 // ============================================================
@@ -61,6 +72,19 @@ export async function requireDeploymentAdmin(): Promise<DeploymentAdminContext> 
   if (ownedAccountIds.length === 0) {
     throw new ForbiddenError(
       "This area is restricted to company owners",
+    );
+  }
+
+  // Allowlist explícita, quando configurada. Fail-closed: quem não
+  // está na lista não entra, nem sendo owner.
+  const allowlist = (process.env.LEADS_DEPLOYMENT_ADMINS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (allowlist.length > 0 && !allowlist.includes(user.id)) {
+    throw new ForbiddenError(
+      "This area is restricted to the deployment operator",
     );
   }
 
