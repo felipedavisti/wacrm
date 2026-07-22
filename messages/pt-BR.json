@@ -263,7 +263,9 @@
       "campaign": "Campanha",
       "adset": "Conjunto",
       "ad": "Anúncio",
-      "campaignPending": "Anúncio {id} — nome da campanha ainda não resolvido"
+      "campaignPending": "Anúncio {id} — nome da campanha ainda não resolvido",
+      "showCampaign": "ver campanha",
+      "hideCampaign": "ocultar campanha"
     },
     "sidebar": {
       "contactInfo": "Informações do contato",

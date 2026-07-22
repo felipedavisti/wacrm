@@ -22,6 +22,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAccountScope } from "@/lib/auth/account-scope";
 
 import { digits, type CanonicalLead } from "./canonical";
+import { applyOriginTag } from "./origin-tag";
 
 export class PermanentDeliveryError extends Error {
   readonly errorClass = "permanent" as const;
@@ -178,6 +179,14 @@ export async function deliverInternal(
   const lead = ingestion.canonical;
 
   if (ingestion.deal_id && ingestion.contact_id) {
+    // Reprocessar devolve a marca de origem — é o que sustenta a
+    // regra de que a tag é projeção, e não a fonte de verdade: se
+    // alguém a apagar, reprocessar o lead reconstrói.
+    await applyOriginTag(admin, {
+      accountId,
+      contactId: ingestion.contact_id,
+      source: lead.source,
+    });
     return { contactId: ingestion.contact_id, dealId: ingestion.deal_id };
   }
 
@@ -236,6 +245,15 @@ export async function deliverInternal(
     .from("lead_ingestions")
     .update({ contact_id: contactId, deal_id: deal.id })
     .eq("id", ingestion.id);
+
+  // Único ponto onde as TRÊS origens convergem com conta, contato e
+  // origem em mãos — por isso a marcação mora aqui, e não repetida
+  // em cada normalizador.
+  await applyOriginTag(admin, {
+    accountId,
+    contactId,
+    source: lead.source,
+  });
 
   return { contactId, dealId: deal.id };
 }

@@ -17,7 +17,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
-import { Megaphone } from "lucide-react";
+import { ChevronDown, Megaphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { createClient } from "@/lib/supabase/client";
@@ -44,6 +44,8 @@ export function CtwaOriginCard({
     id: string;
     origin: CtwaOrigin | null;
   } | null>(null);
+
+  const [open, setOpen] = useState(false);
 
   const origin = state && state.id === conversationId ? state.origin : null;
 
@@ -87,36 +89,53 @@ export function CtwaOriginCard({
     // componente devolve null em conversa comum — um wrapper deixaria
     // um espaço fantasma.
     <div className="mb-4 rounded-lg border border-primary/25 bg-primary/5 p-3">
+      {/* Compacto por padrão. O atendente precisa de UMA coisa antes
+          de digitar: o anúncio que a pessoa leu. Campanha, conjunto e
+          criativo são vocabulário de marketing — ficam a um clique,
+          para quem for analisar, sem ocupar a lateral de quem atende. */}
       <div className="flex items-center gap-1.5">
-        <Megaphone className="size-3.5 text-primary" />
+        <Megaphone className="size-3.5 shrink-0 text-primary" />
         <h4 className="text-xs font-semibold uppercase tracking-wide text-primary">
           {t("title")}
         </h4>
       </div>
 
-      {/* O título do anúncio primeiro: é a frase que a pessoa leu
-          antes de clicar, e o que ela espera que você saiba. */}
       {origin.headline && (
-        <p className="mt-2 text-sm font-medium text-foreground">
+        <p className="mt-1.5 text-sm font-medium text-foreground">
           &ldquo;{origin.headline}&rdquo;
         </p>
       )}
 
-      <dl className="mt-2 space-y-1 text-xs">
-        {origin.campaign_name ? (
-          <Row label={t("campaign")} value={origin.campaign_name} />
-        ) : (
-          // Sem nome de campanha o bloco continua útil (o anúncio
-          // está identificado) e a pendência fica explícita.
-          <p className="text-muted-foreground">
-            {t("campaignPending", { id: origin.source_id ?? "?" })}
-          </p>
-        )}
-        {origin.adset_name && (
-          <Row label={t("adset")} value={origin.adset_name} />
-        )}
-        {origin.ad_name && <Row label={t("ad")} value={origin.ad_name} />}
-      </dl>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mt-1.5 inline-flex items-center gap-0.5 text-xs text-primary hover:underline"
+      >
+        {open ? t("hideCampaign") : t("showCampaign")}
+        <ChevronDown
+          className={`size-3 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+
+      {open && (
+        <dl className="mt-2 space-y-1 border-t border-primary/15 pt-2 text-xs">
+          {origin.campaign_name ? (
+            <Row label={t("campaign")} value={origin.campaign_name} />
+          ) : (
+            // Sem nome de campanha o bloco continua útil (o anúncio
+            // está identificado) e a pendência fica explícita.
+            <p className="text-muted-foreground">
+              {t("campaignPending", { id: origin.source_id ?? "?" })}
+            </p>
+          )}
+          {origin.adset_name && (
+            <Row label={t("adset")} value={origin.adset_name} />
+          )}
+          {origin.ad_name && <Row label={t("ad")} value={origin.ad_name} />}
+        </dl>
+      )}
     </div>
   );
 }

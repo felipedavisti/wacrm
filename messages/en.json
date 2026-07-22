@@ -263,7 +263,9 @@
       "campaign": "Campaign",
       "adset": "Ad set",
       "ad": "Ad",
-      "campaignPending": "Ad {id} — campaign name not resolved yet"
+      "campaignPending": "Ad {id} — campaign name not resolved yet",
+      "showCampaign": "show campaign",
+      "hideCampaign": "hide campaign"
     },
     "sidebar": {
       "contactInfo": "Contact info",
