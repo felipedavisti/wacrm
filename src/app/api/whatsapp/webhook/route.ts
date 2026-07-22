@@ -15,6 +15,8 @@ import {
 } from '@/lib/whatsapp/template-webhook'
 import { mirrorMessageStatus } from '@/lib/whatsapp/status-mirror'
 import { loadWebhookAppSecrets } from '@/lib/whatsapp/webhook-auth'
+import { captureCtwaReferral } from '@/lib/leads/ctwa-referral'
+import type { MetaReferral } from '@/lib/leads/ctwa-referral'
 
 // The `after()` callback in POST runs within this route's max duration.
 // Inbound processing can fan out to per-media Meta verification calls, so
@@ -61,6 +63,13 @@ interface WhatsAppMessage {
   }
   /** Present when the customer swipe-replies to one of our messages. */
   context?: { id: string }
+  /**
+   * Click-to-WhatsApp: present only on the FIRST message of a
+   * conversation started from an ad (spec 010, FR-038). Meta never
+   * resends it, so it has to be captured on arrival or the
+   * attribution is gone for good.
+   */
+  referral?: MetaReferral
 }
 
 interface WhatsAppWebhookEntry {
@@ -616,6 +625,19 @@ async function processMessage(
       contact_id: contactRecord.id,
     })
   }
+
+  // Click-to-WhatsApp attribution (spec 010, FR-038). Runs as early
+  // as the conversation exists and BEFORE the reaction short-circuit:
+  // Meta sends `referral` exactly once, on the first message, and
+  // never again — anything that returns early below would lose it.
+  // Never throws; a capture failure must not cost us the message.
+  await captureCtwaReferral(supabaseAdmin(), {
+    referral: message.referral,
+    wamid: message.id,
+    accountId,
+    conversationId: conversation.id,
+    contactId: contactRecord.id,
+  })
 
   // Reactions short-circuit here — they aren't messages. We never insert
   // into `messages`, never bump unread_count, never update last_message_text.
