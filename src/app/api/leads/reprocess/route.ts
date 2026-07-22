@@ -107,7 +107,9 @@ export async function POST(request: Request) {
       .in("ingestion_id", ingestionIds)
       .eq("account_id", ctx.accountId)
       .in("status", ["failed", "pending"])
-      .select("id");
+      // `ingestion_id` (e não só `id`) porque é ele que diz QUAIS
+      // leads realmente voltaram para a fila.
+      .select("id, ingestion_id");
 
     if (updErr) {
       console.error("[POST /api/leads/reprocess] update error:", updErr);
@@ -119,11 +121,26 @@ export async function POST(request: Request) {
 
     // O status do lead volta a "pending" para o painel refletir que
     // há trabalho em curso; o worker recalcula ao concluir.
-    await admin
-      .from("lead_ingestions")
-      .update({ overall_status: "pending" })
-      .in("id", ingestionIds)
-      .eq("account_id", ctx.accountId);
+    // Só os leads cuja perna REALMENTE reabriu voltam a "pending".
+    //
+    // Antes, todos os ids pedidos eram marcados — inclusive os já
+    // entregues, cuja perna (status 'succeeded') o filtro acima
+    // corretamente ignora. O lead ficava dizendo "Na fila" para
+    // sempre: não havia trabalho pendente para o worker pegar, e a
+    // tela nunca se corrigia sozinha. Reenviar algo já entregue tem
+    // de ser inofensivo — reentregar criaria um SEGUNDO negócio para
+    // o mesmo cliente.
+    const requeuedIds = (reopened ?? []).map(
+      (r: { ingestion_id: string }) => r.ingestion_id,
+    );
+
+    if (requeuedIds.length > 0) {
+      await admin
+        .from("lead_ingestions")
+        .update({ overall_status: "pending" })
+        .in("id", requeuedIds)
+        .eq("account_id", ctx.accountId);
+    }
 
     return NextResponse.json({ requeued: reopened?.length ?? 0 });
   } catch (err) {
