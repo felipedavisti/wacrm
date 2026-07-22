@@ -36,6 +36,123 @@ interface LeadSource {
   meta_app_id: string | null;
   pipeline_id: string | null;
   stage_id: string | null;
+  welcome_enabled: boolean;
+  welcome_template_name: string | null;
+  welcome_template_language: string | null;
+}
+
+/**
+ * Saudação automática desta origem (FR-047).
+ *
+ * Estado local por linha (e não no componente pai) porque cada
+ * origem é uma decisão independente: o admin pode estar digitando o
+ * template de São Luís sem que isso toque na configuração de
+ * Salvador.
+ *
+ * O botão diz o que vai ACONTECER, não o estado atual — "Ligar" é
+ * inequívoco; um interruptor sem rótulo faz o admin ligar quando
+ * queria desligar, e aqui o custo do engano é uma mensagem enviada
+ * a um cliente real.
+ */
+function WelcomeToggle({ source }: { source: LeadSource }) {
+  const t = useTranslations('Settings.leads');
+  const [enabled, setEnabled] = useState(source.welcome_enabled);
+  const [template, setTemplate] = useState(
+    source.welcome_template_name ?? '',
+  );
+  const [language, setLanguage] = useState(
+    source.welcome_template_language ?? 'pt_BR',
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function save(nextEnabled: boolean) {
+    if (nextEnabled && !template.trim()) {
+      toast.error(t('welcomeNeedsTemplate'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/account/lead-sources', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: source.id,
+          welcome_enabled: nextEnabled,
+          welcome_template_name: template.trim(),
+          welcome_template_language: language.trim() || 'pt_BR',
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || t('welcomeSaveFailed'));
+        return;
+      }
+      setEnabled(nextEnabled);
+      toast.success(nextEnabled ? t('welcomeOn') : t('welcomeOff'));
+    } catch (err) {
+      console.error('[WelcomeToggle] save error:', err);
+      toast.error(t('welcomeSaveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 rounded-lg border border-border bg-muted/40 p-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-[11px] font-medium ${
+            enabled
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
+              : 'border-border bg-muted text-muted-foreground'
+          }`}
+        >
+          {enabled ? t('welcomeStateOn') : t('welcomeStateOff')}
+        </span>
+
+        <Input
+          value={template}
+          onChange={(e) => setTemplate(e.target.value)}
+          placeholder="hello_world"
+          aria-label={t('welcomeTemplate')}
+          className="h-8 w-44 border-border bg-muted text-foreground"
+        />
+        <Input
+          value={language}
+          onChange={(e) => setLanguage(e.target.value)}
+          placeholder="pt_BR"
+          aria-label={t('welcomeLanguage')}
+          className="h-8 w-24 border-border bg-muted text-foreground"
+        />
+
+        <Button
+          size="sm"
+          variant={enabled ? 'outline' : 'default'}
+          disabled={saving}
+          onClick={() => save(!enabled)}
+          className={enabled ? 'border-border' : ''}
+        >
+          {enabled ? t('welcomeDisable') : t('welcomeEnable')}
+        </Button>
+
+        {enabled && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={saving}
+            onClick={() => save(true)}
+            className="border-border"
+          >
+            {t('welcomeSave')}
+          </Button>
+        )}
+      </div>
+
+      <p className="mt-1.5 text-xs text-muted-foreground">
+        {t('welcomeHint')}
+      </p>
+    </div>
+  );
 }
 
 interface MetaApp {
@@ -327,37 +444,40 @@ export function LeadsSettings() {
           ) : (
             <ul className="divide-y divide-border">
               {sources.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center gap-4 px-4 py-3"
-                >
-                  <span className="inline-flex shrink-0 items-center rounded-md border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
-                    {s.kind === 'form_id' ? t('kindFormId') : t('kindFilial')}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-sm text-foreground">
-                      {s.value}
-                    </p>
-                    {/* Diz, em cada linha, o que aquele cadastro
-                        significa na prática — o id sozinho não
-                        comunica nada. */}
-                    <p className="truncate text-xs text-muted-foreground">
-                      {s.label ? `${s.label} · ` : ''}
-                      {s.kind === 'form_id'
-                        ? t('rowExplainFormId')
-                        : t('rowExplainFilial')}
-                    </p>
+                <li key={s.id} className="px-4 py-3">
+                  <div className="flex items-center gap-4">
+                    <span className="inline-flex shrink-0 items-center rounded-md border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      {s.kind === 'form_id' ? t('kindFormId') : t('kindFilial')}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-mono text-sm text-foreground">
+                        {s.value}
+                      </p>
+                      {/* Diz, em cada linha, o que aquele cadastro
+                          significa na prática — o id sozinho não
+                          comunica nada. */}
+                      <p className="truncate text-xs text-muted-foreground">
+                        {s.label ? `${s.label} · ` : ''}
+                        {s.kind === 'form_id'
+                          ? t('rowExplainFormId')
+                          : t('rowExplainFilial')}
+                      </p>
+                    </div>
+                    {canManageMembers && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleRemove(s)}
+                        className="border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
                   </div>
-                  {canManageMembers && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleRemove(s)}
-                      className="border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-200"
-                    >
-                      <Trash2 className="size-4" />
-                    </Button>
-                  )}
+
+                  {/* Saudação automática — por origem, desligada por
+                      padrão. Só admin+ vê e mexe. */}
+                  {canManageMembers && <WelcomeToggle source={s} />}
                 </li>
               ))}
             </ul>

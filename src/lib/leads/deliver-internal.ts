@@ -23,6 +23,7 @@ import { requireAccountScope } from "@/lib/auth/account-scope";
 
 import { digits, type CanonicalLead } from "./canonical";
 import { applyOriginTag } from "./origin-tag";
+import { maybeSendLeadWelcome } from "./welcome";
 
 export class PermanentDeliveryError extends Error {
   readonly errorClass = "permanent" as const;
@@ -172,6 +173,8 @@ export async function deliverInternal(
     target_stage_id: string | null;
     contact_id: string | null;
     deal_id: string | null;
+    /** Já saudado? Impede reenvio no reprocessamento (FR-047). */
+    welcome_sent_at?: string | null;
   },
 ): Promise<InternalDeliveryResult> {
   // Fail-closed: nunca rodar uma escrita service_role sem conta.
@@ -253,6 +256,16 @@ export async function deliverInternal(
     accountId,
     contactId,
     source: lead.source,
+  });
+
+  // Saudação (FR-047). Por último, e depois do negócio já existir:
+  // se o WhatsApp recusar o template, o lead continua no funil e o
+  // erro fica visível no lead. Desligada por padrão em toda origem.
+  await maybeSendLeadWelcome(admin, {
+    ingestionId: ingestion.id,
+    accountId,
+    lead,
+    welcomeSentAt: ingestion.welcome_sent_at ?? null,
   });
 
   return { contactId, dealId: deal.id };

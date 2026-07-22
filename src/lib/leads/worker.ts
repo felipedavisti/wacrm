@@ -98,7 +98,7 @@ async function deliverJob(
   const { data: ingestion, error } = await admin
     .from("lead_ingestions")
     .select(
-      "id, account_id, canonical, target_pipeline_id, target_stage_id, contact_id, deal_id",
+      "id, account_id, canonical, target_pipeline_id, target_stage_id, contact_id, deal_id, welcome_sent_at",
     )
     .eq("id", job.ingestion_id)
     .maybeSingle();
@@ -118,6 +118,7 @@ async function deliverJob(
       target_stage_id: ingestion.target_stage_id,
       contact_id: ingestion.contact_id,
       deal_id: ingestion.deal_id,
+      welcome_sent_at: ingestion.welcome_sent_at,
     });
     return res.dealId;
   }

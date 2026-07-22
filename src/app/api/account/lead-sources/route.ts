@@ -27,7 +27,7 @@ export async function GET() {
     const { data, error } = await ctx.supabase
       .from("account_lead_sources")
       .select(
-        "id, kind, value, label, active, meta_app_id, pipeline_id, stage_id, created_at",
+        "id, kind, value, label, active, meta_app_id, pipeline_id, stage_id, created_at, welcome_enabled, welcome_template_name, welcome_template_language",
       )
       .eq("account_id", ctx.accountId)
       .order("created_at", { ascending: true });
@@ -41,6 +41,80 @@ export async function GET() {
     }
 
     return NextResponse.json({ sources: data ?? [] });
+  } catch (err) {
+    return toErrorResponse(err);
+  }
+}
+
+// PATCH — liga/desliga a saudação automática de UMA origem (FR-047).
+//
+// Por origem, e não por empresa: filiais têm operações diferentes, e
+// uma pode querer automatizar enquanto a outra prefere ligar antes.
+// Ligar sem informar o template é recusado aqui e no banco (CHECK) —
+// seria uma origem que tenta enviar e falha em toda entrega.
+export async function PATCH(request: Request) {
+  try {
+    const ctx = await requireRole("admin");
+    const body = (await request.json().catch(() => null)) as {
+      id?: unknown;
+      welcome_enabled?: unknown;
+      welcome_template_name?: unknown;
+      welcome_template_language?: unknown;
+    } | null;
+
+    const id = body?.id;
+    if (typeof id !== "string" || !id) {
+      return NextResponse.json({ error: "'id' is required" }, { status: 400 });
+    }
+
+    const enabled = body?.welcome_enabled === true;
+    const templateName =
+      typeof body?.welcome_template_name === "string"
+        ? body.welcome_template_name.trim()
+        : "";
+
+    if (enabled && !templateName) {
+      return NextResponse.json(
+        {
+          error:
+            "Informe o nome do template aprovado antes de ligar a saudação automática.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const { data, error } = await ctx.supabase
+      .from("account_lead_sources")
+      .update({
+        welcome_enabled: enabled,
+        welcome_template_name: templateName || null,
+        welcome_template_language:
+          typeof body?.welcome_template_language === "string" &&
+          body.welcome_template_language.trim()
+            ? body.welcome_template_language.trim()
+            : "pt_BR",
+      })
+      .eq("id", id)
+      // Defesa em profundidade: o RLS já limita à empresa ativa, mas
+      // uma escrita cruzada não pode depender só disso.
+      .eq("account_id", ctx.accountId)
+      .select(
+        "id, welcome_enabled, welcome_template_name, welcome_template_language",
+      )
+      .maybeSingle();
+
+    if (error) {
+      console.error("[PATCH /api/account/lead-sources] update error:", error);
+      return NextResponse.json(
+        { error: "Failed to update lead source" },
+        { status: 500 },
+      );
+    }
+    if (!data) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ source: data });
   } catch (err) {
     return toErrorResponse(err);
   }
