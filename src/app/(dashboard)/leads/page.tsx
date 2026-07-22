@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/use-auth';
 import type { CanonicalLead } from '@/lib/leads/canonical';
 
 import { LeadDetailSheet } from './lead-detail-sheet';
+import { LeadsMetrics } from './leads-metrics';
 import { UnroutedQueue } from './unrouted-queue';
 
 export interface LeadRow {
@@ -72,6 +73,11 @@ export default function LeadsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [openLead, setOpenLead] = useState<LeadRow | null>(null);
+  // Incrementado por qualquer ação que mude os números (reenvio,
+  // vínculo de origem, refresh manual). Recarrega os indicadores
+  // junto com a lista — sem isso o topo mostraria "3 falhas" logo
+  // depois de você reenviar as 3.
+  const [tick, setTick] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,6 +107,13 @@ export default function LeadsPage() {
     if (accountRole === 'owner') void load();
   }, [load, accountRole]);
 
+  // Lista + indicadores. Usado pelas ações; o carregamento inicial
+  // fica com `load`/o efeito próprio de cada componente.
+  const refresh = useCallback(async () => {
+    setTick((t) => t + 1);
+    await load();
+  }, [load]);
+
   const failedCount = useMemo(
     () => leads.filter((l) => l.overall_status === 'failed').length,
     [leads],
@@ -121,7 +134,7 @@ export default function LeadsPage() {
       const { requeued } = (await res.json()) as { requeued: number };
       if (requeued === 0) toast.info(t('toastNothingToRequeue'));
       else toast.success(t('toastRequeued', { count: requeued }));
-      await load();
+      await refresh();
     } catch (err) {
       console.error('[LeadsPage] reprocess error:', err);
       toast.error(t('toastFailed'));
@@ -162,7 +175,10 @@ export default function LeadsPage() {
 
       {/* Leads órfãos primeiro: são os que ninguém está trabalhando
           e que somem de qualquer filtro por empresa (FR-022). */}
-      <UnroutedQueue onResolved={load} />
+      <UnroutedQueue onResolved={refresh} />
+
+      {/* Indicadores do período selecionado (FR-030). */}
+      <LeadsMetrics days={days} refreshKey={tick} />
 
       {/* Filtros combináveis (FR-027) */}
       <div className="flex flex-wrap items-center gap-2">
@@ -196,6 +212,7 @@ export default function LeadsPage() {
           aria-label={t('filterPeriod')}
           className="h-9 rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary"
         >
+          <option value="1">{t('days1')}</option>
           <option value="7">{t('days7')}</option>
           <option value="30">{t('days30')}</option>
           <option value="90">{t('days90')}</option>
@@ -204,7 +221,7 @@ export default function LeadsPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => load()}
+          onClick={() => refresh()}
           disabled={loading}
           className="border-border"
         >
@@ -323,7 +340,7 @@ export default function LeadsPage() {
       <LeadDetailSheet
         lead={openLead}
         onOpenChange={(open) => !open && setOpenLead(null)}
-        onReprocessed={load}
+        onReprocessed={refresh}
       />
     </div>
   );
