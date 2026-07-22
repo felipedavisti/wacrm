@@ -16,6 +16,7 @@ import {
 import { mirrorMessageStatus } from '@/lib/whatsapp/status-mirror'
 import { loadWebhookAppSecrets } from '@/lib/whatsapp/webhook-auth'
 import { captureCtwaReferral } from '@/lib/leads/ctwa-referral'
+import { enrichCtwaReferral } from '@/lib/leads/ctwa-enrich'
 import type { MetaReferral } from '@/lib/leads/ctwa-referral'
 
 // The `after()` callback in POST runs within this route's max duration.
@@ -631,13 +632,28 @@ async function processMessage(
   // Meta sends `referral` exactly once, on the first message, and
   // never again — anything that returns early below would lose it.
   // Never throws; a capture failure must not cost us the message.
-  await captureCtwaReferral(supabaseAdmin(), {
+  const ctwaReferral = await captureCtwaReferral(supabaseAdmin(), {
     referral: message.referral,
     wamid: message.id,
     accountId,
     conversationId: conversation.id,
     contactId: contactRecord.id,
   })
+
+  // Só depois de gravado o vínculo é que trocamos o id do anúncio
+  // pelos nomes de campanha/conjunto (Graph API). Nesta ordem, uma
+  // falha de rede custa o NOME da campanha, não a atribuição.
+  if (ctwaReferral) {
+    await enrichCtwaReferral(
+      supabaseAdmin(),
+      {
+        id: ctwaReferral.id,
+        account_id: accountId,
+        source_id: ctwaReferral.source_id,
+      },
+      decrypt,
+    )
+  }
 
   // Reactions short-circuit here — they aren't messages. We never insert
   // into `messages`, never bump unread_count, never update last_message_text.

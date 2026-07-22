@@ -106,6 +106,40 @@ export async function enrichMetaLead(
   return { leadgen, adInfo, formName: form?.name };
 }
 
+/** O anúncio por trás de um referral CTWA (spec 010). */
+export interface MetaCtwaAd {
+  id?: string;
+  name?: string;
+  account_id?: string;
+  adset?: { id?: string; name?: string };
+  campaign?: { id?: string; name?: string };
+}
+
+/**
+ * Resolve campanha/conjunto/anúncio a partir do `source_id` do
+ * referral CTWA.
+ *
+ * É a chamada que fecha a atribuição: o referral que a Meta entrega
+ * no webhook traz apenas o ID do anúncio — nome de campanha e de
+ * conjunto só existem aqui. Exige `ads_read` no token (escopo
+ * diferente do `leads_retrieval` usado pelo formulário; o mesmo token
+ * pode ter os dois).
+ *
+ * Lança `MetaGraphError` em falha: quem chama decide se é retentável.
+ * O vínculo com o anúncio já está gravado, então uma falha aqui
+ * atrasa o nome da campanha — nunca perde a atribuição.
+ */
+export async function fetchCtwaAd(
+  token: string,
+  adId: string,
+): Promise<MetaCtwaAd | undefined> {
+  return graphGet<MetaCtwaAd>(
+    graphUrl(adId, "id,name,account_id,adset{id,name},campaign{id,name}"),
+    token,
+    "o anúncio do CTWA",
+  );
+}
+
 /**
  * Lista leads de um formulário (usado pela recuperação ativa da 011
  * e útil para testar com dado real sem esperar um lead novo).
