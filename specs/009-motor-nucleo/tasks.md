@@ -87,11 +87,29 @@ revisadas (Princípio II) · i18n pt-BR/en.
 
 ## Phase 7: User Story 5 — Destino configurável por conta (Priority: P2)
 
-**Independent Test**: destino interno cria deal; trocar para externo (stub) → entrega vai ao externo pelo mesmo outbox.
+> **CORTADA em 2026-07-22, por decisão do PO.**
+>
+> A US5 nasceu quando o destino do lead era o **Odoo**. Essa premissa
+> morreu no início da 009: o destino passou a ser o próprio CRM (o
+> negócio no funil). Construir agora um adaptador de destino externo
+> seria código sem usuário — mantido, testado e migrado por anos para
+> atender um caso que ninguém tem.
+>
+> **O que NÃO se perde com o corte**: a substituibilidade continua no
+> desenho. `enqueueDelivery` já lê `account_destination_config` e
+> grava a perna com `destination`, e o outbox já suporta N pernas por
+> lead (é de onde vem o estado `partially_sent`). Quando aparecer um
+> destino externo de verdade, ele pluga como um segundo `destination`
+> sem tocar em ingestão, normalização, persistência ou resiliência —
+> que era o requisito real da FR-036.
+>
+> **Consequência aceita**: `partially_sent` fica inalcançável enquanto
+> houver um destino só. O estado permanece no modelo de propósito;
+> removê-lo custaria uma migration hoje e outra no dia em que voltasse.
 
-- [ ] T022 [US5] `GET/PUT /api/account/lead-destination` + UI de config por empresa (interno|externo, segredos criptografados). (FR-036)
-- [ ] T023 [US5] Adaptador de destino **externo** (via pg_net/Edge Function) plugado no worker; sem alterar ingestão/normalização/persistência. (FR-036, SC-011)
-- [ ] T024 [P] [US5] Teste: troca interno↔externo vale para os próximos leads; núcleo inalterado; `partially_sent` surge só com >1 destino. (SC-011, FR-034)
+- [~] T022 [US5] ~~`GET/PUT /api/account/lead-destination` + UI de config por empresa~~ — cortada.
+- [~] T023 [US5] ~~Adaptador de destino **externo** plugado no worker~~ — cortada.
+- [~] T024 [US5] ~~Teste: troca interno↔externo~~ — cortada.
 
 **Checkpoint**: dupla função (motor puro vs motor+CRM) por conta.
 
