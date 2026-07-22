@@ -17,6 +17,7 @@ import { mirrorMessageStatus } from '@/lib/whatsapp/status-mirror'
 import { loadWebhookAppSecrets } from '@/lib/whatsapp/webhook-auth'
 import { captureCtwaReferral } from '@/lib/leads/ctwa-referral'
 import { enrichCtwaReferral } from '@/lib/leads/ctwa-enrich'
+import { createCtwaLead } from '@/lib/leads/ctwa-lead'
 import type { MetaReferral } from '@/lib/leads/ctwa-referral'
 
 // The `after()` callback in POST runs within this route's max duration.
@@ -644,7 +645,7 @@ async function processMessage(
   // pelos nomes de campanha/conjunto (Graph API). Nesta ordem, uma
   // falha de rede custa o NOME da campanha, não a atribuição.
   if (ctwaReferral) {
-    await enrichCtwaReferral(
+    const enrichment = await enrichCtwaReferral(
       supabaseAdmin(),
       {
         id: ctwaReferral.id,
@@ -653,6 +654,26 @@ async function processMessage(
       },
       decrypt,
     )
+
+    // A conversa do anúncio vira negócio no funil AGORA (FR-039) —
+    // sem esperar qualificação humana ou de IA. A automação que
+    // qualifica e atribui pluga depois, sobre um lead que já existe.
+    await createCtwaLead(supabaseAdmin(), {
+      accountId,
+      contactId: contactRecord.id,
+      conversationId: conversation.id,
+      contactName: contactRecord.name,
+      contactPhone: contactRecord.phone,
+      referral: {
+        id: ctwaReferral.id,
+        source_id: ctwaReferral.source_id,
+        source_url: message.referral?.source_url ?? null,
+        headline: message.referral?.headline ?? null,
+        ctwa_clid: ctwaReferral.ctwa_clid,
+        raw: message.referral ?? {},
+      },
+      enrichment,
+    })
   }
 
   // Reactions short-circuit here — they aren't messages. We never insert
