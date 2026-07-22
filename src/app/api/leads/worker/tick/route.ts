@@ -15,7 +15,23 @@ import { runWorkerTick } from "@/lib/leads/worker";
 // Auth: segredo compartilhado `x-cron-secret`, comparado em tempo
 // constante — mesmo padrão do cron de automações. Fail-closed: sem
 // segredo configurado, o endpoint não roda (503).
+//
+// Aceita GET **e** POST pelo mesmo handler. POST é o verbo correto
+// (a chamada tem efeito colateral), mas os dois crons que já existem
+// aqui — /api/automations/cron e /api/flows/cron — são GET, e muito
+// agendador gratuito só dispara GET. Quem for configurar os três
+// numa tarde não deveria descobrir que o terceiro é diferente. O
+// endpoint é protegido por segredo, então o risco real de um GET
+// com efeito (pré-busca de navegador, crawler) não se aplica.
+export async function GET(request: Request) {
+  return handleTick(request);
+}
+
 export async function POST(request: Request) {
+  return handleTick(request);
+}
+
+async function handleTick(request: Request) {
   const expected = process.env.LEADS_CRON_SECRET;
   if (!expected) {
     return NextResponse.json({ error: "cron not configured" }, { status: 503 });
