@@ -18,14 +18,20 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { CtwaOriginCard } from "@/components/inbox/ctwa-origin-card";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 
 interface ContactSidebarProps {
   contact: Contact | null;
+  /** Conversa aberta — usada para mostrar de qual anúncio ela veio. */
+  conversationId?: string | null;
 }
 
-export function ContactSidebar({ contact }: ContactSidebarProps) {
+export function ContactSidebar({
+  contact,
+  conversationId = null,
+}: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -180,6 +186,11 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
 
           {/* Divider */}
           <div className="my-4 border-t border-border" />
+
+          {/* De qual anúncio veio (CTWA). Acima de tags e negócios de
+              propósito: é o contexto que muda a PRIMEIRA frase do
+              atendente, então precisa ser visto antes de ele digitar. */}
+          <CtwaOriginCard conversationId={conversationId} />
 
           {/* Tags */}
           <div>

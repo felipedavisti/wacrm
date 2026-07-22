@@ -258,6 +258,13 @@
       "send": "Send template",
       "sendFromNumber": "Send from"
     },
+    "ctwa": {
+      "title": "Came from an ad",
+      "campaign": "Campaign",
+      "adset": "Ad set",
+      "ad": "Ad",
+      "campaignPending": "Ad {id} — campaign name not resolved yet"
+    },
     "sidebar": {
       "contactInfo": "Contact info",
       "tags": "Tags",

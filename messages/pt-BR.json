@@ -258,6 +258,13 @@
       "send": "Enviar modelo",
       "sendFromNumber": "Enviar pelo número"
     },
+    "ctwa": {
+      "title": "Veio de um anúncio",
+      "campaign": "Campanha",
+      "adset": "Conjunto",
+      "ad": "Anúncio",
+      "campaignPending": "Anúncio {id} — nome da campanha ainda não resolvido"
+    },
     "sidebar": {
       "contactInfo": "Informações do contato",
       "tags": "Tags",
