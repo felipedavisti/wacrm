@@ -493,6 +493,40 @@ string; parser CSV não trata quebra de linha dentro de campo; datas em alguns
 lugares com locale `en-US` fixo; textos do feed de atividade, da presença e de
 parte das telas de auth ainda em inglês fora do i18n.
 
+### Antes de homologar com dados reais
+
+Prioridade acordada em 2026-07-22, nesta ordem:
+
+1. **Confirmar se já existe agendador rodando.** O cron de automações usa
+   `AUTOMATION_CRON_SECRET` e responde 503 sem ele. Se nunca foi agendado,
+   descobrimos de quebra que **automações com "aguardar" nunca completaram**.
+2. **Agendar o worker de leads** — `GET|POST /api/leads/worker/tick` com o
+   header `x-cron-secret`, a cada ~1 min. **Sem isso, lead de site e de
+   formulário entra e não entrega.** É configuração, não código.
+3. **Corrigir `tag-manager`** (filtra por `user_id`) — hoje um admin que não
+   seja o owner não vê as tags de origem criadas pela migration 520, e conclui
+   que não existem.
+4. **Guarda de regressão no espelhamento de status** — um reenvio de webhook da
+   Meta pode voltar "lida" para "enviada", e é justamente nesses números que a
+   homologação vai olhar para decidir se confia no sistema.
+
+**Condicionais ao escopo:**
+
+- Se a homologação incluir **campanha real**, a orquestração no navegador vira
+  bloqueio: fechar a aba deixa clientes reais parcialmente contatados, sem
+  retomada e sem retry.
+- Se incluir **automação, flow ou IA**, a falta de checagem da janela de 24h nos
+  motores vira bloqueio.
+
+**Verificação sem código, antes de qualquer mensagem sair**: confirmar que a
+empresa de homologação não tem automação, flow nem IA ativos respondendo a
+cliente real.
+
+**Deliberadamente fora**: as 11
+[funcionalidades aparentes](#funcionalidades-aparentes). O custo certo delas é
+avisar a operação, não codar — corrigir agora atrasa a homologação para resolver
+algo que ela nem exercita.
+
 ### Pendências de processo
 
 - **Cron do worker de leads não agendado** em produção — sem ele, leads de site
