@@ -81,6 +81,18 @@ export interface CanonicalLead {
    * visível no painel — o lead é criado de qualquer forma (FR-005).
    */
   missingFields?: string[];
+  /**
+   * `true` = o lead entrou só com os IDs do webhook e ainda precisa
+   * de uma volta na Graph API para ter nome/telefone/e-mail.
+   *
+   * Existe porque o webhook `leadgen` da Meta NÃO traz dado pessoal.
+   * Antes o enriquecimento acontecia na própria rota, antes de
+   * persistir — então uma falha da Graph fazia o lead nunca existir,
+   * enquanto respondíamos 200 (= "pode esquecer") para a Meta. O
+   * enriquecimento passou para o worker, que tem retry e
+   * reprocessamento; esta flag é o que ele consulta.
+   */
+  enrichmentPending?: boolean;
 }
 
 /** Só dígitos. */

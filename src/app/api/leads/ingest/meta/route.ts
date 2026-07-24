@@ -6,9 +6,7 @@ import { loadWebhookAppSecrets } from "@/lib/whatsapp/webhook-auth";
 
 import { supabaseAdmin } from "@/lib/leads/admin-client";
 import { ingestLead, recordRejectedEvent } from "@/lib/leads/ingest";
-import { enrichMetaLead } from "@/lib/leads/meta-graph";
 import { normalizeMetaFormLead, type MetaWebhookValue } from "@/lib/leads/normalize";
-import { resolveLeadsToken, resolveSourceByKey } from "@/lib/leads/routing";
 
 // /api/leads/ingest/meta (spec 009, US1)
 //
@@ -111,33 +109,21 @@ export async function POST(request: Request) {
       if (!value.leadgen_id) continue;
 
       try {
-        // O token vem do App que a CONTA cadastrou — não de env
-        // global: uma conta pode ter vários Apps da Meta, e é o
-        // formulário que diz a qual pertence (migration 517).
-        // Precisa acontecer antes de normalizar, porque sem os dados
-        // da Graph não há o que normalizar.
-        const source = value.form_id
-          ? await resolveSourceByKey(admin, "form_id", value.form_id)
-          : null;
-        const token = await resolveLeadsToken(
-          admin,
-          { metaAppId: source?.metaAppId, accountId: source?.accountId },
-          decrypt,
-        );
-
-        // Sem token não dá para enriquecer — mas o lead NÃO se perde:
-        // entra com os IDs que o webhook trouxe e a pendência fica
-        // visível. Um reprocessamento posterior completa os dados.
-        const enrichment = token
-          ? await enrichMetaLead(token, {
-              leadgenId: value.leadgen_id,
-              adId: value.ad_id,
-              formId: value.form_id,
-            })
-          : {};
-
-        const lead = normalizeMetaFormLead({ webhook: value, ...enrichment });
-        const res = await ingestLead(admin, lead, { webhook: value, ...enrichment });
+        // PERSISTIR PRIMEIRO, enriquecer depois (correção 2026-07-24).
+        //
+        // O enriquecimento (três chamadas à Graph) morava aqui, antes
+        // de qualquer gravação. Como respondemos 200 à Meta — que ela
+        // lê como "pode esquecer, é meu" —, uma falha da Graph fazia o
+        // lead nunca existir como lead: ia para `lead_rejected_events`,
+        // tabela sem tela, sem métrica e sem reprocessamento. A Meta
+        // apagava da fila dela e nós não tínhamos onde ver.
+        //
+        // Agora o lead entra com os ids do webhook e o worker completa,
+        // com lease, backoff e reprocessamento pelo painel. De bônus, a
+        // rota deixou de gastar três chamadas de rede numa reentrega
+        // que ia ser descartada por idempotência no passo seguinte.
+        const lead = normalizeMetaFormLead({ webhook: value });
+        const res = await ingestLead(admin, lead, { webhook: value });
         results.push({ leadgen_id: value.leadgen_id, status: res.dedup });
       } catch (err) {
         // Enriquecimento/ingestão falhou: registra e segue para os

@@ -16,8 +16,11 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { decrypt } from "@/lib/whatsapp/encryption";
+
 import type { CanonicalLead } from "./canonical";
 import { deliverInternal, PermanentDeliveryError } from "./deliver-internal";
+import { enrichPendingMetaLead } from "./enrich-pending";
 
 interface DeliveryJob {
   id: string;
@@ -110,10 +113,21 @@ async function deliverJob(
   }
 
   if (job.destination === "internal") {
+    // Lead de formulário da Meta entra só com ids (o webhook não traz
+    // dado pessoal). Completar aqui — e não na rota — é o que permite
+    // responder 200 rápido à Meta sem prometer o que não guardamos:
+    // se a Graph falhar, este throw devolve o job para a fila com
+    // backoff, e o lead segue visível no painel. Nunca some.
+    const canonical = await enrichPendingMetaLead(
+      admin,
+      { id: ingestion.id, canonical: ingestion.canonical as CanonicalLead },
+      decrypt,
+    );
+
     const res = await deliverInternal(admin, {
       id: ingestion.id,
       account_id: ingestion.account_id,
-      canonical: ingestion.canonical as CanonicalLead,
+      canonical,
       target_pipeline_id: ingestion.target_pipeline_id,
       target_stage_id: ingestion.target_stage_id,
       contact_id: ingestion.contact_id,

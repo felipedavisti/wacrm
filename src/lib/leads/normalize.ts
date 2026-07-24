@@ -196,5 +196,9 @@ export function normalizeMetaFormLead(input: {
     // roteamento da Meta (o antigo `mapaFilial` do n8n).
     routingKey: formId ? { kind: "form_id", value: formId } : null,
     missingFields: missingFields.length > 0 ? [...missingFields] : undefined,
+    // Sem `leadgen` não houve chamada à Graph — o lead tem só os IDs
+    // do webhook e o worker precisa completar. A recuperação ativa
+    // (011) já chega com o leadgen em mãos, então lá isto é false.
+    enrichmentPending: leadgen ? undefined : true,
   };
 }
