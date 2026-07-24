@@ -60,7 +60,7 @@ export async function runWorkerTick(
   let succeeded = 0;
   let failed = 0;
 
-  for (const job of claimed) {
+  async function processar(job: DeliveryJob): Promise<void> {
     try {
       const ref = await deliverJob(admin, job);
       await admin.rpc("finish_lead_delivery_job", {
@@ -90,8 +90,54 @@ export async function runWorkerTick(
     }
   }
 
+  await runPool(claimed, concurrency(), processar);
+
   return { claimed: claimed.length, succeeded, failed };
 }
+
+/**
+ * Pool de execução com concorrência limitada — o equivalente a N
+ * goroutines lendo do mesmo canal.
+ *
+ * A entrega é I/O puro (Graph API, Postgres), então serializar os
+ * jobs desperdiçava o tempo de espera: um lote de 25 com ~2s cada
+ * levava quase um minuto de relógio para um trabalho que é quase
+ * todo ociosidade. Com N em voo, o event loop sobrepõe as esperas.
+ *
+ * Limitado, e não `Promise.all` no lote inteiro: 25 chamadas
+ * simultâneas à Graph convidam a um 429 da Meta, e o pool de
+ * conexões do Postgres também é finito.
+ *
+ * Os contadores não precisam de trava — o JS não tem paralelismo
+ * real de memória; a concorrência aqui é de I/O, e `succeeded++`
+ * nunca é interrompido no meio.
+ */
+async function runPool<T>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  const fila = [...items];
+  const trabalhadores = Array.from(
+    { length: Math.min(limit, fila.length) },
+    async () => {
+      for (let item = fila.shift(); item !== undefined; item = fila.shift()) {
+        await fn(item);
+      }
+    },
+  );
+  await Promise.all(trabalhadores);
+}
+
+/** Quantos jobs em voo por tique. Ajustável por ambiente. */
+function concurrency(): number {
+  const bruto = Number(process.env.LEADS_WORKER_CONCURRENCY);
+  if (!Number.isFinite(bruto) || bruto < 1) return DEFAULT_CONCURRENCY;
+  return Math.min(Math.floor(bruto), MAX_CONCURRENCY);
+}
+
+const DEFAULT_CONCURRENCY = 4;
+const MAX_CONCURRENCY = 16;
 
 /** Despacha para o adaptador do destino (FR-036). */
 async function deliverJob(
