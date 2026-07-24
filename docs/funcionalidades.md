@@ -555,3 +555,11 @@ algo que ela nem exercita.
 | 009 | Motor de leads — núcleo | Entregue; US5 (destino externo) **cortada** |
 | 010 | CTWA | Entregue |
 | 011 | Recuperação e alertas | US1 entregue; US2 (alertas de formato) pendente |
+| 012 | Prontidão para escala horizontal | Spec escrita — **bloqueante para N>1** |
+| 013 | Observabilidade e operação | Spec escrita |
+
+> As specs 012 e 013 nasceram de uma **auditoria do código** feita em
+> 2026-07-24, motivada pela decisão de escalar horizontalmente. Várias das
+> dívidas listadas acima foram absorvidas por elas — com arquivo, linha e
+> cenário de falha concreto. Ver `specs/012-escala-horizontal/tasks.md` e
+> `specs/013-observabilidade/tasks.md`.
