@@ -1,0 +1,82 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { raw: JSON.stringify($('Webhook').item.json.body) } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-2288, -672],
+      "id": "b1000000-0000-4000-8000-000000000001",
+      "name": "CRM preparar corpo"
+    },
+    {
+      "parameters": {
+        "action": "hmac",
+        "type": "SHA256",
+        "value": "={{ $json.raw }}",
+        "dataPropertyName": "sig",
+        "secret": "COLE-O-META_APP_SECRET",
+        "encoding": "hex"
+      },
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 1,
+      "position": [-2064, -672],
+      "id": "b1000000-0000-4000-8000-000000000002",
+      "name": "CRM assinar"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://testeapi.gatewaygrupovitalmed.com.br/api/leads/ingest/meta",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-hub-signature-256",
+              "value": "=sha256={{ $json.sig }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $('CRM preparar corpo').item.json.raw }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-1840, -672],
+      "id": "b1000000-0000-4000-8000-000000000003",
+      "name": "CRM espelhar formulario",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {
+    "CRM preparar corpo": {
+      "main": [
+        [
+          {
+            "node": "CRM assinar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRM assinar": {
+      "main": [
+        [
+          {
+            "node": "CRM espelhar formulario",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}

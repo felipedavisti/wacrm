@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://testeapi.gatewaygrupovitalmed.com.br/api/leads/ingest/site",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-site-token",
+              "value": "COLE-O-LEADS_SITE_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Webhook').item.json.body) }}",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [-1520, 816],
+      "id": "c1000000-0000-4000-8000-000000000001",
+      "name": "CRM espelhar site",
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "connections": {},
+  "pinData": {}
+}
