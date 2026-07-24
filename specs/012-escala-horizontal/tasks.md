@@ -151,9 +151,14 @@ no código.
 
 ## Phase 3: Higiene de escala
 
-- [ ] **T023** Identificador de instância estável em `locked_by` do worker (o
-  `process.pid` atual **colide entre containers**).
-  *Achado 2.1 — `src/lib/leads/worker.ts:40-42`.*
+- [ ] **T023** Identificador de instância em `locked_by` do worker.
+  *Achado 2.1 + observação em 2026-07-24: além de `process.pid` **colidir entre
+  containers**, o campo está chegando **vazio** no banco — verificado com uma
+  sonda real (`lead_delivery_jobs.locked_by` em branco após reivindicação
+  bem-sucedida). Investigar se a RPC `claim_lead_delivery_jobs` grava o
+  `p_worker` recebido. Com uma instância é irrelevante; com N, é a diferença
+  entre diagnosticar e adivinhar quem pegou o quê.*
+  *`src/lib/leads/worker.ts:40-42` + migration 514.*
 
 - [ ] **T024** Verificar o `Cache-Control` que de fato sai da rota de mídia em
   produção (`curl -I`).
